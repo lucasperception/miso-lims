@@ -12,7 +12,7 @@ build-tag:
         - if: '$CI_COMMIT_TAG'
     script:
         - mvn clean package
-        - mv target/ROOT.war ROOT.war
+        - mv /miso-web/target/ROOT.war ROOT.war
     artifacts:
         paths:
             - ROOT.war
