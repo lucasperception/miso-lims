@@ -1,5 +1,6 @@
 stages:
     - build
+    - deploy
 
 variables:
     MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
@@ -21,3 +22,31 @@ build-publish-tag:
         paths:
             - ROOT.war
         expire_in: 1 week
+
+
+deploy-tag:
+    stage: deploy
+    image: alpine:latest
+    when: manual
+    needs: []
+    rules:
+        - when: manual
+    inputs: 
+        tag: 
+            description: "Tag to deploy (e.g. v1.0.1 or feature-xyz-rc1)"
+            type: string 
+            required: true 
+        environment: 
+            description: "Environment to deploy to" 
+            type: string 
+            required: true 
+            default: "stage" 
+            options: - stage - prod
+    script:
+        - echo "Deploying tag: $[[ inputs.tag ]] to environment: $[[ inputs.environment ]]"
+        - |
+          curl --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+               --output ROOT.war \
+               "$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/generic/miso/$[[ inputs.tag ]]/ROOT.war" 
+        - ls
+
