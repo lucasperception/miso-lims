@@ -1,3 +1,17 @@
+spec:
+    inputs: 
+        tag: 
+            description: "Tag to deploy (e.g. v1.0.1 or feature-xyz-rc1)"
+            type: string 
+        environment: 
+            description: "Environment to deploy to" 
+            type: string 
+            default: "stage" 
+            options: 
+                - stage
+                - prod
+
+---
 stages:
     - build
     - deploy
@@ -23,7 +37,6 @@ build-publish-tag:
             - ROOT.war
         expire_in: 1 week
 
-
 deploy-tag:
     stage: deploy
     image: alpine:latest
@@ -31,17 +44,6 @@ deploy-tag:
     needs: []
     rules:
         - when: manual
-    inputs: 
-        tag: 
-            description: "Tag to deploy (e.g. v1.0.1 or feature-xyz-rc1)"
-            type: string 
-            required: true 
-        environment: 
-            description: "Environment to deploy to" 
-            type: string 
-            required: true 
-            default: "stage" 
-            options: stage - prod
     script:
         - echo "Deploying tag $[[ inputs.tag ]] to environment $[[ inputs.environment ]]"
         - |
