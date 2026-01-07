@@ -41,7 +41,7 @@ deploy-tag:
             type: string 
             required: true 
             default: "stage" 
-            options: - stage - prod
+            options: stage - prod
     script:
         - echo "Deploying tag: $[[ inputs.tag ]] to environment: $[[ inputs.environment ]]"
         - |
