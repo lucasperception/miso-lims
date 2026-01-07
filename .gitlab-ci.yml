@@ -3,6 +3,7 @@ spec:
         tag: 
             description: "Tag to deploy (e.g. v1.0.1 or feature-xyz-rc1)"
             type: string
+            default: null
 
         environment: 
             description: "Environment to deploy to" 
@@ -45,7 +46,7 @@ deploy-tag:
     rules:
         - when: manual
     script:
-        - echo "Deploying tag $INPUT_TAG to environment INPUT_ENVIRONMENT"
+        - echo "Deploying tag $INPUT_TAG to environment $INPUT_ENVIRONMENT"
         - |
           curl --header "JOB-TOKEN: $CI_JOB_TOKEN" \
                --output ROOT.war \
