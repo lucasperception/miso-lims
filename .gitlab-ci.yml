@@ -14,6 +14,7 @@ build-publish-tag:
     script:
         - mvn clean package
         - mv /builds/core/miso/miso-web/target/ROOT.war ROOT.war
+        - echo "$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/generic/miso/$CI_COMMIT_TAG/ROOT.war"
         - | 
           curl --header "JOB-TOKEN: $CI_JOB_TOKEN" \
                  --upload-file ROOT.war \
