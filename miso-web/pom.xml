@@ -5,7 +5,7 @@
   <parent>
     <artifactId>miso</artifactId>
     <groupId>uk.ac.bbsrc.tgac.miso</groupId>
-    <version>3.14.2</version>
+    <version>3.17.1-SNAPSHOT</version>
   </parent>
   <artifactId>miso-web</artifactId>
   <packaging>war</packaging>
@@ -51,8 +51,8 @@
       <artifactId>oauth-signature</artifactId>
     </dependency>
     <dependency>
-      <groupId>commons-httpclient</groupId>
-      <artifactId>commons-httpclient</artifactId>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpclient</artifactId>
     </dependency>
     <dependency>
       <groupId>commons-logging</groupId>
@@ -101,11 +101,6 @@
     <dependency>
       <groupId>jakarta.ws.rs</groupId>
       <artifactId>jakarta.ws.rs-api</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>net.sf.json-lib</groupId>
-      <artifactId>json-lib</artifactId>
-      <classifier>jdk15</classifier>
     </dependency>
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>

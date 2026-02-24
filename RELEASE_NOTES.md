@@ -7,6 +7,51 @@ Starting with version 1.29.0, the format of this file is based on
 
 ---------------------------------------------------------------------------------------------------
 
+## [3.17.0] - 2026-02-12
+
+### Added
+
+* Qc status can be added to Array run.
+* Probes (AKA feature barcodes), which can be added to single cell tissue processing samples (detailed sample)
+* Probe sets for saving common sets of probes for reuse
+
+### Fixed
+
+* Server Error while loading Edit Array Run page if no arrays attached.
+
+
+## [3.16.0] - 2026-01-29
+
+### Added
+
+* Ability to add QCs to Library Aliquots.
+* User can scan an entire box at once to automatically assign and update barcodes for multiple positions. After scanning, they can review a visual summary with warnings and confirm or cancel the changes.
+
+### Changed
+
+* Tracking List downloads for samples, libraries, and library aliquots now include Requisition and Assay columns
+
+
+## [3.15.0] - 2026-01-15
+
+### Added
+
+* "Attach files" option is available to user to attach file for Library aliquots.
+* Pools can be added to Worksets.
+
+### Fixed
+
+* In plain sample mode, the Propagate Samples dialog included a "To" field that was intended for detailed sample mode only and contained several invalid options
+* Help text for "req" search term to clarify that it searches by requisition alias
+* The Requisitions and Transfers list pages were missing proper titles
+* Some file downloads were not working due to commas or other characters in the filename
+
+### Upgrade Notes
+
+* Updated Run Scanner to 2.3.1
+  
+
+
 ## [3.14.2] - 2025-12-11
 
 ### Fixed

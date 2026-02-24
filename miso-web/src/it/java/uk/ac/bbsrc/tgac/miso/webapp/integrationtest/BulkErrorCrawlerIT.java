@@ -112,6 +112,7 @@ public class BulkErrorCrawlerIT extends AbstractIT {
                 slugs.add("deliverable/list");
                 slugs.add("deliverablecategory/list");
                 slugs.add("contactrole/list");
+                slugs.add("probeset/list");
 
                 slugs.add("studies");
                 slugs.add("experiments");
@@ -183,6 +184,8 @@ public class BulkErrorCrawlerIT extends AbstractIT {
                 slugs.add("submission/new?experimentIds=1");
                 slugs.add("submission/1");
                 slugs.add("user/3");
+                slugs.add("probeset/new");
+                slugs.add("probeset/1");
 
                 // Bulk pages
                 slugs.add("assaytest/bulk/new?quantity=3");
@@ -230,6 +233,7 @@ public class BulkErrorCrawlerIT extends AbstractIT {
                 slugs.add("deliverable/bulk/new?quantity=3");
                 slugs.add("deliverablecategory/bulk/new?quantity=3");
                 slugs.add("contactrole/bulk/new?quantity=3");
+                slugs.add("sample/15/probes?addProbes=2");
 
                 urlSlugs = Collections.unmodifiableSet(slugs);
 
@@ -293,6 +297,12 @@ public class BulkErrorCrawlerIT extends AbstractIT {
                                 .put("qc/bulk/editFrom/Library",
                                                 (driver, baseUrl) -> BulkQCPage.getForEditLibrary(driver, baseUrl,
                                                                 Arrays.asList(2201L), 1))
+                                .put("qc/bulk/addFrom/LibraryAliquot",
+                                                (driver, baseUrl) -> BulkQCPage.getForAddLibraryAliquot(driver, baseUrl,
+                                                                Arrays.asList(304L, 305L), 1, 1))
+                                .put("qc/bulk/editFrom/LibraryAliquot",
+                                                (driver, baseUrl) -> BulkQCPage.getForEditLibraryAliquot(driver, baseUrl,
+                                                                Arrays.asList(1L), 1))
                                 .build());
 
                 postPages = Collections.unmodifiableMap(new MapBuilder<String, Map<String, String>>()

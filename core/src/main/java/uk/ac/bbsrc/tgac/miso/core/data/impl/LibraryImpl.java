@@ -12,8 +12,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.apache.commons.lang.builder.HashCodeBuilder;
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.hibernate.annotations.Immutable;
 
 import com.eaglegenomics.simlims.core.Note;
@@ -141,7 +141,7 @@ public class LibraryImpl extends AbstractBoxable implements Library {
   @JoinColumn(name = "index2Id")
   private LibraryIndex index2;
 
-  @OneToMany(targetEntity = LibraryQC.class, mappedBy = "library", cascade = CascadeType.ALL)
+  @OneToMany(targetEntity = LibraryQC.class, mappedBy = "library", cascade = CascadeType.REMOVE)
   private final Collection<LibraryQC> libraryQCs = new TreeSet<>();
 
   @OneToMany(targetEntity = LibraryAliquot.class, mappedBy = "library")

@@ -26,7 +26,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.commons.lang.NotImplementedException;
+import org.apache.commons.lang3.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -239,20 +239,9 @@ import uk.ac.bbsrc.tgac.miso.core.data.impl.workset.WorksetItem;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.workset.WorksetLibrary;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.workset.WorksetLibraryAliquot;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.workset.WorksetSample;
+import uk.ac.bbsrc.tgac.miso.core.data.impl.workset.WorksetPool;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.workset.WorksetStage;
-import uk.ac.bbsrc.tgac.miso.core.data.qc.ContainerQC;
-import uk.ac.bbsrc.tgac.miso.core.data.qc.ContainerQcControlRun;
-import uk.ac.bbsrc.tgac.miso.core.data.qc.LibraryQC;
-import uk.ac.bbsrc.tgac.miso.core.data.qc.LibraryQcControlRun;
-import uk.ac.bbsrc.tgac.miso.core.data.qc.PoolQC;
-import uk.ac.bbsrc.tgac.miso.core.data.qc.PoolQcControlRun;
-import uk.ac.bbsrc.tgac.miso.core.data.qc.QC;
-import uk.ac.bbsrc.tgac.miso.core.data.qc.QcControl;
-import uk.ac.bbsrc.tgac.miso.core.data.qc.QcControlRun;
-import uk.ac.bbsrc.tgac.miso.core.data.qc.QcTarget;
-import uk.ac.bbsrc.tgac.miso.core.data.qc.RequisitionQC;
-import uk.ac.bbsrc.tgac.miso.core.data.qc.SampleQC;
-import uk.ac.bbsrc.tgac.miso.core.data.qc.SampleQcControlRun;
+import uk.ac.bbsrc.tgac.miso.core.data.qc.*;
 import uk.ac.bbsrc.tgac.miso.core.data.spreadsheet.SampleSpreadSheets;
 import uk.ac.bbsrc.tgac.miso.core.data.spreadsheet.SpreadSheetFormat;
 import uk.ac.bbsrc.tgac.miso.core.data.spreadsheet.Spreadsheet;
@@ -1203,6 +1192,9 @@ public class Dtos {
     setInteger(dto::setTargetCellRecovery, from.getTargetCellRecovery(), true);
     setString(dto::setLoadingCellConcentration, from.getLoadingCellConcentration());
     setString(dto::setDigestion, from.getDigestion());
+    if (from.getProbes() != null) {
+      dto.setProbes(from.getProbes().stream().map(ProbeDto::from).toList());
+    }
     return dto;
   }
 
@@ -1220,6 +1212,9 @@ public class Dtos {
     setInteger(to::setTargetCellRecovery, from.getTargetCellRecovery(), true);
     setBigDecimal(to::setLoadingCellConcentration, from.getLoadingCellConcentration());
     setString(to::setDigestion, from.getDigestion());
+    if (from.getProbes() != null) {
+      to.setProbes(from.getProbes().stream().map(ProbeDto::toSampleProbe).collect(Collectors.toSet()));
+    }
     return to;
   }
 
@@ -2446,6 +2441,7 @@ public class Dtos {
     dto.setId(from.getId());
     dto.setDate(formatDate(from.getDate()));
     dto.setCreator(from.getCreator().getFullName());
+    dto.setQcTarget(from.getEntity().getQcTarget().getLabel());
     setId(dto::setQcTypeId, from.getType());
     setString(dto::setResults, from.getResults());
     dto.setEntityId(from.getEntity().getId());
@@ -2471,6 +2467,13 @@ public class Dtos {
         ownerLibrary.setId(dto.getEntityId());
         newLibraryQc.setLibrary(ownerLibrary);
         to = newLibraryQc;
+        break;
+      case "LibraryAliquot":
+        LibraryAliquotQC newLibraryAliquotQc = new LibraryAliquotQC();
+        LibraryAliquot ownerLibraryAliquot = new LibraryAliquot();
+        ownerLibraryAliquot.setId(dto.getEntityId());
+        newLibraryAliquotQc.setLibraryAliquot(ownerLibraryAliquot);
+        to = newLibraryAliquotQc;
         break;
       case "Sample":
         SampleQC newSampleQc = new SampleQC();
@@ -2547,6 +2550,12 @@ public class Dtos {
           ((LibraryQC) qc).getControls().add(libraryQcControlRun);
           to = libraryQcControlRun;
           break;
+        case LibraryAliquot:
+            LibraryAliquotQcControlRun libraryAliquotQcControlRun = new LibraryAliquotQcControlRun();
+            libraryAliquotQcControlRun.setQc((LibraryAliquotQC) qc);
+            ((LibraryAliquotQC) qc).getControls().add(libraryAliquotQcControlRun);
+            to = libraryAliquotQcControlRun;
+            break;
         case Pool:
           PoolQcControlRun poolQcControlRun = new PoolQcControlRun();
           poolQcControlRun.setQc((PoolQC) qc);
@@ -2915,7 +2924,7 @@ public class Dtos {
         setIlluminaRunValues((IlluminaNotificationDto) from, (IlluminaRun) to);
         break;
       default:
-        throw new NotImplementedException();
+        throw new NotImplementedException("Unexpected platform type: " + to.getPlatformType());
     }
     return to;
   }
@@ -3452,6 +3461,9 @@ public class Dtos {
     dto.setStatus(from.getHealth().getKey());
     setDateString(dto::setStartDate, from.getStartDate());
     setDateString(dto::setCompletionDate, from.getCompletionDate());
+    setBoolean(dto::setQcPassed, from.getQcPassed(), true);
+    setString(dto::setQcUserName, maybeGetProperty(from.getQcUser(), User::getFullName));
+    setDateString(dto::setQcDate, from.getQcDate());
     setDateString(dto::setLastModified, from.getLastModified());
     return dto;
   }
@@ -3493,6 +3505,7 @@ public class Dtos {
     run.setHealth(HealthType.get(from.getStatus()));
     setLocalDate(run::setStartDate, from.getStartDate());
     setLocalDate(run::setCompletionDate, from.getCompletionDate());
+    setBoolean(run::setQcPassed, from.getQcPassed(), true);
     setDate(run::setLastModified, from.getLastModified());
     return run;
   }
@@ -3787,6 +3800,7 @@ public class Dtos {
     setWorksetItemIds(from.getWorksetSamples(), dto::setSampleIds);
     setWorksetItemIds(from.getWorksetLibraries(), dto::setLibraryIds);
     setWorksetItemIds(from.getWorksetLibraryAliquots(), dto::setLibraryAliquotIds);
+    setWorksetItemIds(from.getWorksetPools(), dto::setPoolIds);
     dto.setCreator(from.getCreator().getFullName());
     dto.setLastModified(formatDateTime(from.getLastModified()));
     return dto;
@@ -3812,7 +3826,7 @@ public class Dtos {
     setWorksetItems(workset::setWorksetLibraries, from.getLibraryIds(), WorksetLibrary::new, LibraryImpl::new);
     setWorksetItems(workset::setWorksetLibraryAliquots, from.getLibraryAliquotIds(), WorksetLibraryAliquot::new,
         LibraryAliquot::new);
-
+    setWorksetItems(workset::setWorksetPools, from.getPoolIds(), WorksetPool::new, PoolImpl::new);
     return workset;
   }
 

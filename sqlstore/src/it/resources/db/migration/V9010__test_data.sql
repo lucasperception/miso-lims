@@ -361,6 +361,17 @@ INSERT INTO LibraryDesignCode(libraryDesignCodeId, code, description) VALUES
 (2, 'WG', 'Whole Genome'),
 (3, 'WT', 'Whole Transcriptome');
 
+INSERT INTO ProbeSet(probeSetId, name) VALUES
+(1, 'Probe set one'),
+(2, 'Probe set two'),
+(3, 'Something else');
+
+INSERT INTO ProbeSetProbe(probeSetId, probeId, identifier, name, readNumber, pattern, sequence, featureType, targetGeneId, targetGeneName) VALUES
+(1, 1, 'C0006', 'anti-human_CD86', 'R2', '5PNNNNNNNNNN(BC)', 'GTCTTTGTCAGTGCA', 'ANTIBODY_CAPTURE', NULL, NULL),
+(1, 2, 'C0007', 'anti-human_CD274_B7-H1_PD-L1', 'R2', '5PNNNNNNNNNN(BC)', 'GTTGTCCGACAATAC', 'ANTIBODY_CAPTURE', NULL, NULL),
+(1, 3, 'C0020', 'anti-human_CD270_HVEM_TR2', 'R2', '5PNNNNNNNNNN(BC)', 'TGATAGAAACAGACC', 'ANTIBODY_CAPTURE', NULL, NULL),
+(1, 4, 'C0023', 'anti-human_CD155_PVR', 'R2', '5PNNNNNNNNNN(BC)', 'ATCACATCGTTGCCA', 'ANTIBODY_CAPTURE', NULL, NULL);
+
 INSERT INTO MetricSubcategory(subcategoryId, alias, category, libraryDesignCodeId, sortPriority) VALUES
 (1, 'Nucleic Acid Isolation', 'EXTRACTION', NULL, 1),
 (2, 'Fluorometric Quantification (Qubit or Plate Reader)', 'EXTRACTION', NULL, 2),
@@ -507,6 +518,9 @@ INSERT INTO Sample(discriminator, sampleId, name, alias, project_projectId, samp
 
 INSERT INTO SampleHierarchy(sampleId, identityId, tissueId) VALUES
 (25, 15, 17);
+
+INSERT INTO SampleProbe(sampleId, probeId, identifier, name, readNumber, pattern, sequence, featureType) VALUES
+(25, 1, 'C0023', 'anti-human_CD155_PVR', 'R2', '5PNNNNNNNNNN(BC)', 'ATCACATCGTTGCCA', 'ANTIBODY_CAPTURE');
 
 -- Stocks
 INSERT INTO `Sample`(`sampleId`, `accession`, `name`, `description`, `identificationBarcode`, `locationBarcode`, `sampleType`, `detailedQcStatusId`,
@@ -716,6 +730,25 @@ VALUES (1,2,1,'TEST_0001_Bn_P_PE_300_WG','LDI1::TEST_0001_Bn_P_PE_300_WG','2015-
 (13,2,13,'TEST_0007_Bn_P_PE_300_WG','LDI13::TEST_0007_Bn_P_PE_300_WG','2015-08-27',1,1,'LDI13',NULL,NULL, 'LibraryAliquot', NULL),
 (14,2,14,'TEST_0007_Bn_R_PE_300_WG','LDI14::TEST_0007_Bn_R_PE_300_WG','2015-08-27',1,1,'LDI14',NULL,NULL, 'LibraryAliquot', NULL),
 (15,2,15,'TEST_0001_ALIQUOT_1_PE_300_WG','LDI15::TEST_0001_ALIQUOT_1_PE_300_WG','2018-02-15',1,1,'LDI15',NULL,NULL, 'LibraryAliquot', NULL);
+
+INSERT INTO LibraryAliquotQc(qcId, aliquotId, creator, date, type, results,created, lastModified,description, instrumentId, kitLot, kitDescriptorId) VALUES
+ (1,1,1,'2015-08-27',4,3,'2015-08-27','2015-08-27',NULL,NULL,NULL,NULL),
+ (2,2,1,'2015-08-27',4,3,'2015-08-27','2015-08-27',NULL,NULL,NULL,NULL),
+ (3,3,1,'2015-08-27',4,3,'2015-08-27','2015-08-27',NULL,NULL,NULL,NULL),
+ (4,4,1,'2015-08-27',4,3,'2015-08-27','2015-08-27',NULL,NULL,NULL,NULL),
+ (5,5,1,'2015-08-27',4,3,'2015-08-27','2015-08-27',NULL,NULL,NULL,NULL),
+ (6,6,1,'2015-08-27',4,3,'2015-08-27','2015-08-27',NULL,NULL,NULL,NULL),
+ (7,7,1,'2015-08-27',4,3,'2015-08-27','2015-08-27',NULL,NULL,NULL,NULL),
+ (8,8,1,'2015-08-27',4,3,'2015-08-27','2015-08-27',NULL,NULL,NULL,NULL),
+ (9,9,1,'2015-08-27',4,3,'2015-08-27','2015-08-27',NULL,NULL,NULL,NULL),
+ (10,10,1,'2015-08-27',4,3,'2015-08-27','2015-08-27',NULL,NULL,NULL,NULL),
+ (11,11,1,'2015-08-27',4,3,'2015-08-27','2015-08-27',NULL,NULL,NULL,NULL),
+ (12,12,1,'2015-08-27',4,3,'2015-08-27','2015-08-27',NULL,NULL,NULL,NULL),
+ (13,13,1,'2015-08-27',4,3,'2015-08-27','2015-08-27',NULL,NULL,NULL,NULL),
+ (14,14,1,'2015-08-27',4,3,'2015-08-27','2015-08-27',NULL,NULL,NULL,NULL);
+
+INSERT INTO LibraryAliquotQcControl(qcControlId, qcId, controlId, lot, qcPassed) VALUES
+ (1, 14, 5, '20150827', TRUE);
 
 INSERT INTO `LibraryQC`(`qcId`, `library_libraryId`, `creator`, `date`, `type`, `results`, instrumentId) VALUES
  (1,1,1,'2015-08-27',4,3,NULL),
@@ -1072,6 +1105,11 @@ INSERT INTO Workset_Library(worksetId, libraryId, addedTime) VALUES
 
 INSERT INTO Workset_LibraryAliquot(worksetId, aliquotId, addedTime) VALUES
 (2, 1, '2021-03-08 13:59:00');
+
+INSERT INTO Workset_Pool(worksetId, poolId, addedTime) VALUES
+(1, 1, '2025-12-04 11:30:00'),
+(1, 2, '2025-12-04 11:30:00'),
+(2, 1, '2025-12-04 11:30:00');
 
 INSERT INTO SequencingOrder(sequencingOrderId, poolId, partitions, parametersId, purposeId, sequencingContainerModelId, description, createdBy, creationDate, updatedBy, lastUpdated) VALUES
 (1, 1, 1, 1, 1, NULL, 'seq order 1', 1, '2019-09-23 10:30:00', 1, '2019-09-23 10:30:00'),
