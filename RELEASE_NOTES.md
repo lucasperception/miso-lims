@@ -7,6 +7,55 @@ Starting with version 1.29.0, the format of this file is based on
 
 ---------------------------------------------------------------------------------------------------
 
+## [3.20.0] - 2026-04-09
+
+### Added
+
+* assay changelogs
+* Multiple positions can be selected at once for adding/removing samples from the array on the Edit Array page.
+
+### Changed
+
+* Library aliquots in Pinery will now include as sample attributes the same QC types that are included from samples or libraries
+* The Initial Extraction Yields List sample download sheet now only includes the "Created Date" and "Created By" if date of creation is set (previously it was showing the date entered)
+
+### Fixed
+
+* formatting of date columns in download sheets
+* When importing a spreadsheet into a bulk input table, an error will now be shown if certain read-only data does not match between the table and the spreadsheet. This is mainly intended to catch cases where the table and spreadsheet have not been sorted consistently.
+* Error adding entire boxes of items to transfers from the Create/Edit Transfer page
+* Unexpected error when attempting to add some samples to distribution transfers
+
+
+## [3.19.0] - 2026-03-19
+
+### Added
+
+* Archive status is now available for assay versions in pinery.
+* Advanced search term to find runs by instrument model
+* Draft field for assays
+  * Projects and requisitions that include draft assays will show a warning
+  * The field is included in Pinery assays
+
+### Changed
+
+* Sample timepoints can no longer include the following characters: `<>&%;/\` (detailed sample)
+* Changes to project contacts are now included in the project changelog
+* Identity and ghost/synthetic samples can no longer be added to transfers (detailed sample)
+
+
+## [3.18.0] - 2026-02-26
+
+### Changed
+
+* Box size can now be changed even if there are items in the box, as long as the new size has the same dimensions (rows and columns) as the old size
+
+### Fixed
+
+* Incorrect scanner error shown before scanner properly scanned box for barcode assignment.
+* When QC Status was not set on a bulk sample/library/aliquot table and the table was sorted, QC Status would set itself to "Not Ready" instead of remaining unset
+
+
 ## [3.17.0] - 2026-02-12
 
 ### Added

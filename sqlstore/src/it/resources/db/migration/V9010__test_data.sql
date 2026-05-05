@@ -10,7 +10,7 @@ INSERT INTO `_Group`(`groupId`, `name`, `description`) VALUES
 INSERT INTO `User_Group` (`users_userId`, `groups_groupId`)
 VALUES (3,1),(1,1);
 
-INSERT INTO RunLibraryQcStatus(statusId, description, qcPassed) VALUES
+INSERT INTO RunItemQcStatus(statusId, description, qcPassed) VALUES
 (1, 'Passed', TRUE),
 (2, 'Failed', FALSE),
 (3, 'Top-up required', NULL);
@@ -383,10 +383,10 @@ INSERT INTO Metric(metricId, alias, category, subcategoryId, thresholdType, unit
 (2, 'WG Library Yield', 'LIBRARY_PREP', 3, 'GE', 'ng/μL'),
 (3, 'Min Clusters (PF)', 'LIBRARY_QUALIFICATION', NULL, 'GT', 'K/lane');
 
-INSERT INTO Assay(assayId, alias, version, description) VALUES
-(1, 'Low Depth WGTS', '1.0', NULL),
-(2, 'Full Depth WGTS', '1.0', NULL),
-(3, 'WG Only', '1.0', NULL);
+INSERT INTO Assay(assayId, alias, version, description, creator, created, lastModifier, lastModified) VALUES
+(1, 'Low Depth WGTS', '1.0', NULL, 1, '2026-04-07 08:05:00', 1, '2026-04-07 08:05:00'),
+(2, 'Full Depth WGTS', '1.0', NULL, 1, '2026-04-07 08:05:00', 1, '2026-04-07 08:05:00'),
+(3, 'WG Only', '1.0', NULL, 1, '2026-04-07 08:05:00', 1, '2026-04-07 08:05:00');
 
 INSERT INTO AssayTest(testId, alias, tissueTypeId, negateTissueType, extractionClassId, libraryDesignCodeId, libraryQualificationMethod, libraryQualificationDesignCodeId, repeatPerTimepoint) VALUES
 (1, 'Tumour WG', 2, TRUE, 3, 2, 'LOW_DEPTH_SEQUENCING', NULL, TRUE),

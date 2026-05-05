@@ -496,18 +496,21 @@ BulkTarget.sample = (function ($) {
               type: "text",
               data: "parentName",
               disabled: true,
+              preventImport: true,
             },
             {
               title: "Parent Alias",
               type: "text",
               data: "parentAlias",
               disabled: true,
+              preventImport: true,
             },
             {
               title: "Parent Location",
               type: "text",
               data: "parentBoxPositionLabel",
               disabled: true,
+              preventImport: true,
               customSorting: [
                 {
                   name: "Parent Location (by rows)",
@@ -528,6 +531,7 @@ BulkTarget.sample = (function ($) {
               type: "text",
               data: "parentSampleClassAlias",
               disabled: true,
+              preventImport: true,
               include: config.pageMode === "propagate",
               getData: function (sample) {
                 return Utils.array.maybeGetProperty(
@@ -1065,7 +1069,9 @@ BulkTarget.sample = (function ($) {
           include: show["Tissue"],
           includeSaved: targetCategory === "Tissue",
           maxLength: 50,
-          description: "When the sample was taken",
+          regex: Utils.validation.uriComponentRegex,
+          description:
+            "When the sample was taken. The following characters are prohibited: <>&%;/\\",
         },
         {
           title: "Index Family",
@@ -1355,7 +1361,7 @@ BulkTarget.sample = (function ($) {
       );
 
       if (!config.isLibraryReceipt) {
-        columns = columns.concat(BulkUtils.columns.detailedQcStatus());
+        columns = columns.concat(BulkUtils.columns.detailedQcStatus(config.pageMode));
       }
 
       columns.push(

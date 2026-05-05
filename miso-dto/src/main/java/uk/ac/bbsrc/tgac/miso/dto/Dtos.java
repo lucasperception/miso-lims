@@ -91,7 +91,7 @@ import uk.ac.bbsrc.tgac.miso.core.data.Printer;
 import uk.ac.bbsrc.tgac.miso.core.data.Project;
 import uk.ac.bbsrc.tgac.miso.core.data.ReferenceGenome;
 import uk.ac.bbsrc.tgac.miso.core.data.Run;
-import uk.ac.bbsrc.tgac.miso.core.data.RunLibraryQcStatus;
+import uk.ac.bbsrc.tgac.miso.core.data.RunItemQcStatus;
 import uk.ac.bbsrc.tgac.miso.core.data.RunPartitionAliquot;
 import uk.ac.bbsrc.tgac.miso.core.data.Sample;
 import uk.ac.bbsrc.tgac.miso.core.data.SampleAliquot;
@@ -238,10 +238,24 @@ import uk.ac.bbsrc.tgac.miso.core.data.impl.workset.WorksetCategory;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.workset.WorksetItem;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.workset.WorksetLibrary;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.workset.WorksetLibraryAliquot;
-import uk.ac.bbsrc.tgac.miso.core.data.impl.workset.WorksetSample;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.workset.WorksetPool;
+import uk.ac.bbsrc.tgac.miso.core.data.impl.workset.WorksetSample;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.workset.WorksetStage;
-import uk.ac.bbsrc.tgac.miso.core.data.qc.*;
+import uk.ac.bbsrc.tgac.miso.core.data.qc.ContainerQC;
+import uk.ac.bbsrc.tgac.miso.core.data.qc.ContainerQcControlRun;
+import uk.ac.bbsrc.tgac.miso.core.data.qc.LibraryAliquotQC;
+import uk.ac.bbsrc.tgac.miso.core.data.qc.LibraryAliquotQcControlRun;
+import uk.ac.bbsrc.tgac.miso.core.data.qc.LibraryQC;
+import uk.ac.bbsrc.tgac.miso.core.data.qc.LibraryQcControlRun;
+import uk.ac.bbsrc.tgac.miso.core.data.qc.PoolQC;
+import uk.ac.bbsrc.tgac.miso.core.data.qc.PoolQcControlRun;
+import uk.ac.bbsrc.tgac.miso.core.data.qc.QC;
+import uk.ac.bbsrc.tgac.miso.core.data.qc.QcControl;
+import uk.ac.bbsrc.tgac.miso.core.data.qc.QcControlRun;
+import uk.ac.bbsrc.tgac.miso.core.data.qc.QcTarget;
+import uk.ac.bbsrc.tgac.miso.core.data.qc.RequisitionQC;
+import uk.ac.bbsrc.tgac.miso.core.data.qc.SampleQC;
+import uk.ac.bbsrc.tgac.miso.core.data.qc.SampleQcControlRun;
 import uk.ac.bbsrc.tgac.miso.core.data.spreadsheet.SampleSpreadSheets;
 import uk.ac.bbsrc.tgac.miso.core.data.spreadsheet.SpreadSheetFormat;
 import uk.ac.bbsrc.tgac.miso.core.data.spreadsheet.Spreadsheet;
@@ -1682,6 +1696,7 @@ public class Dtos {
     BoxableDto dto = new BoxableDto();
     dto.setId(from.getId());
     dto.setAlias(from.getAlias());
+    dto.setBoxId(from.getBoxId());
     dto.setBoxAlias(from.getBoxAlias());
     dto.setBoxPosition(BoxUtils.makeLocationLabel(from));
     dto.setCoordinates(from.getBoxPosition());
@@ -2551,11 +2566,11 @@ public class Dtos {
           to = libraryQcControlRun;
           break;
         case LibraryAliquot:
-            LibraryAliquotQcControlRun libraryAliquotQcControlRun = new LibraryAliquotQcControlRun();
-            libraryAliquotQcControlRun.setQc((LibraryAliquotQC) qc);
-            ((LibraryAliquotQC) qc).getControls().add(libraryAliquotQcControlRun);
-            to = libraryAliquotQcControlRun;
-            break;
+          LibraryAliquotQcControlRun libraryAliquotQcControlRun = new LibraryAliquotQcControlRun();
+          libraryAliquotQcControlRun.setQc((LibraryAliquotQC) qc);
+          ((LibraryAliquotQC) qc).getControls().add(libraryAliquotQcControlRun);
+          to = libraryAliquotQcControlRun;
+          break;
         case Pool:
           PoolQcControlRun poolQcControlRun = new PoolQcControlRun();
           poolQcControlRun.setQc((PoolQC) qc);
@@ -4314,7 +4329,7 @@ public class Dtos {
     setObject(to::setPartition, PartitionImpl::new, from.getPartitionId());
     setObject(to::setAliquot, ListLibraryAliquotView::new, from.getAliquotId());
     setObject(to::setPurpose, RunPurpose::new, from.getRunPurposeId());
-    setObject(to::setQcStatus, RunLibraryQcStatus::new, from.getQcStatusId());
+    setObject(to::setQcStatus, RunItemQcStatus::new, from.getQcStatusId());
     setString(to::setQcNote, from.getQcNote());
     setBoolean(to::setDataReview, from.getDataReview(), true);
     return to;
@@ -4554,16 +4569,16 @@ public class Dtos {
     return to;
   }
 
-  public static RunLibraryQcStatusDto asDto(RunLibraryQcStatus from) {
-    RunLibraryQcStatusDto to = new RunLibraryQcStatusDto();
+  public static RunItemQcStatusDto asDto(RunItemQcStatus from) {
+    RunItemQcStatusDto to = new RunItemQcStatusDto();
     setLong(to::setId, from.getId(), true);
     setString(to::setDescription, from.getDescription());
     setBoolean(to::setQcPassed, from.getQcPassed(), true);
     return to;
   }
 
-  public static RunLibraryQcStatus to(RunLibraryQcStatusDto from) {
-    RunLibraryQcStatus to = new RunLibraryQcStatus();
+  public static RunItemQcStatus to(RunItemQcStatusDto from) {
+    RunItemQcStatus to = new RunItemQcStatus();
     setLong(to::setId, from.getId(), false);
     setString(to::setDescription, from.getDescription());
     setBoolean(to::setQcPassed, from.getQcPassed(), true);

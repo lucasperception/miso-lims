@@ -210,11 +210,10 @@ BulkTarget.libraryaliquot = (function ($) {
               Urls.rest.worksets.addLibraryAliquots
             ),
         BulkUtils.actions.attachFile("libraryaliquot", function (libraryAliquot) {
-            return libraryAliquot.projectId;
+          return libraryAliquot.projectId;
         }),
         BulkUtils.actions.transfer("libraryAliquotIds"),
-      ]
-      .concat(BulkUtils.actions.qc("LibraryAliquot"));
+      ].concat(BulkUtils.actions.qc("LibraryAliquot"));
     },
     getFixedColumns: function (config) {
       return 2;
@@ -226,6 +225,7 @@ BulkTarget.libraryaliquot = (function ($) {
           type: "text",
           data: "parentName",
           disabled: true,
+          preventImport: true,
           include: config.pageMode === "propagate",
         },
         {
@@ -233,6 +233,7 @@ BulkTarget.libraryaliquot = (function ($) {
           type: "text",
           data: "parentAlias",
           disabled: true,
+          preventImport: true,
           getData: function (aliquot) {
             return aliquot.parentAliquotAlias || aliquot.libraryAlias;
           },
@@ -244,6 +245,7 @@ BulkTarget.libraryaliquot = (function ($) {
           type: "text",
           data: "parentBoxPositionLabel",
           disabled: true,
+          preventImport: true,
           include: config.pageMode === "propagate",
           customSorting: [
             {
@@ -266,6 +268,7 @@ BulkTarget.libraryaliquot = (function ($) {
           title: "Project",
           type: "text",
           disabled: true,
+          preventImport: true,
           data: Constants.isDetailedSample ? "projectCode" : "projectName",
         },
         BulkUtils.columns.assay(),
@@ -273,6 +276,7 @@ BulkTarget.libraryaliquot = (function ($) {
           title: "Tissue Origin",
           type: "text",
           disabled: true,
+          preventImport: true,
           data: "effectiveTissueOriginAlias",
           getData: function (item, api) {
             return (
@@ -286,6 +290,7 @@ BulkTarget.libraryaliquot = (function ($) {
           title: "Tissue Type",
           type: "text",
           disabled: true,
+          preventImport: true,
           data: "effectiveTissueTypeAlias",
           getData: function (item, api) {
             return item.effectiveTissueTypeAlias + " (" + item.effectiveTissueTypeDescription + ")";
@@ -327,7 +332,7 @@ BulkTarget.libraryaliquot = (function ($) {
         },
       });
 
-      columns = columns.concat(BulkUtils.columns.detailedQcStatus());
+      columns = columns.concat(BulkUtils.columns.detailedQcStatus(config.pageMode));
       columns.push(BulkUtils.columns.dnaSize);
       columns = columns.concat(BulkUtils.columns.concentration());
       columns = columns.concat(BulkUtils.columns.volume(false, config));
