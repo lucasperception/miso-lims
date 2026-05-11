@@ -456,7 +456,9 @@ FormTarget.sample = (function ($) {
               data: "timepoint",
               type: "text",
               maxLength: 50,
-              description: "When the sample was taken",
+              regex: Utils.validation.uriComponentRegex,
+              description:
+                "When the sample was taken. The following characters are prohibited: <>&%;/\\",
             },
           ],
         },
@@ -700,6 +702,8 @@ FormTarget.sample = (function ($) {
       ];
     },
     confirmSave: function (object, isDialog, form) {
+      object.probes = Sample.getProbes();
+
       if (form.isChanged("projectId")) {
         var messages = [];
         if (object.identityConsentLevel && object.identityConsentLevel !== "All Projects") {

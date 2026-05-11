@@ -16,6 +16,58 @@ BulkTarget.sample = (function ($) {
    * }
    */
 
+  // stored state when editing probes
+  var probeEditingSamples = null;
+  var allSamples = null;
+
+  var sampleProbeTarget = {
+    getColumns: function (config, api) {
+      return BulkTarget.probe.getColumns(config, api);
+    },
+    getCustomActions: function (config, api) {
+      return [
+        {
+          name: "Apply Probe Changes",
+          action: function () {
+            switchToSamplesTable(api);
+          },
+        },
+        {
+          name: "Save as Probe Set",
+          action: function () {
+            api.validate(function () {
+              var deferred = $.Deferred();
+              var probes = api.getData();
+              ProbeSet.showSaveProbeSetDialog(
+                probes,
+                function () {
+                  deferred.resolve(true);
+                },
+                deferred.reject
+              );
+              return deferred.promise();
+            });
+          },
+        },
+        {
+          name: "Cancel Probe Changes",
+          action: function () {
+            api.rebuildTable(BulkTarget.sample, allSamples);
+          },
+        },
+      ];
+    },
+    confirmSave: function (data, config, api) {
+      var deferred = $.Deferred();
+      Utils.showOkDialog(
+        "Save Samples",
+        ["Please apply or cancel the probe changes before saving."],
+        deferred.reject
+      );
+      return deferred.promise();
+    },
+  };
+
   var originalProjectIdsBySampleId = {};
   var originalEffectiveGroupIdsByRow = {};
   var parentLocationsByRow = null;
@@ -51,6 +103,14 @@ BulkTarget.sample = (function ($) {
           );
         },
       });
+      if (config.targetCategory === "Tissue Processing") {
+        actions.push({
+          name: "Edit Probes",
+          action: function (api) {
+            showEditProbesDialog(api);
+          },
+        });
+      }
       return actions;
     },
     getBulkActions: function (config) {
@@ -110,19 +170,21 @@ BulkTarget.sample = (function ($) {
               }
 
               // In the case of plain samples, this will be empty, which is fine.
-              var targets = getCommonChildCategories(classes).map(function (category) {
-                return {
-                  name: category,
-                  action: function (replicates, newBoxId) {
-                    Utils.page.post(Urls.ui.samples.bulkPropagate, {
-                      boxId: newBoxId,
-                      parentIds: idsString,
-                      replicates: replicates,
-                      targetCategory: category,
-                    });
-                  },
-                };
-              });
+              var targets = !Constants.isDetailedSample
+                ? []
+                : getCommonChildCategories(classes).map(function (category) {
+                    return {
+                      name: category,
+                      action: function (replicates, newBoxId) {
+                        Utils.page.post(Urls.ui.samples.bulkPropagate, {
+                          boxId: newBoxId,
+                          parentIds: idsString,
+                          replicates: replicates,
+                          targetCategory: category,
+                        });
+                      },
+                    };
+                  });
               if (!Constants.isDetailedSample || sourceCategories[0] === "Aliquot") {
                 targets.push({
                   name: "Library",
@@ -434,18 +496,21 @@ BulkTarget.sample = (function ($) {
               type: "text",
               data: "parentName",
               disabled: true,
+              preventImport: true,
             },
             {
               title: "Parent Alias",
               type: "text",
               data: "parentAlias",
               disabled: true,
+              preventImport: true,
             },
             {
               title: "Parent Location",
               type: "text",
               data: "parentBoxPositionLabel",
               disabled: true,
+              preventImport: true,
               customSorting: [
                 {
                   name: "Parent Location (by rows)",
@@ -466,6 +531,7 @@ BulkTarget.sample = (function ($) {
               type: "text",
               data: "parentSampleClassAlias",
               disabled: true,
+              preventImport: true,
               include: config.pageMode === "propagate",
               getData: function (sample) {
                 return Utils.array.maybeGetProperty(
@@ -650,11 +716,14 @@ BulkTarget.sample = (function ($) {
                   var newValue = undefined;
                   if (!subcategoryMatch) {
                     newValue = null;
-                  } else if (config.pageMode !== "edit" && column.initial) {
+                  } else if (
+                    column.initial &&
+                    (config.pageMode !== "edit" || column.initializeOnEdit)
+                  ) {
                     newValue = column.initial;
                   }
                   api.updateField(rowIndex, dataField, {
-                    disabled: !subcategoryMatch,
+                    disabled: column.disabled || !subcategoryMatch,
                     required: subcategoryMatch ? column.required : false,
                     value: newValue,
                   });
@@ -664,6 +733,15 @@ BulkTarget.sample = (function ($) {
                   value: selected.defaultSampleType,
                 });
               }
+            }
+            if (
+              api.getData &&
+              (!selected ||
+                selected.sampleCategory !== "Tissue Processing" ||
+                selected.sampleSubcategory !== "Single Cell")
+            ) {
+              var sample = api.getData()[rowIndex];
+              sample.probes = null;
             }
           },
         },
@@ -991,7 +1069,9 @@ BulkTarget.sample = (function ($) {
           include: show["Tissue"],
           includeSaved: targetCategory === "Tissue",
           maxLength: 50,
-          description: "When the sample was taken",
+          regex: Utils.validation.uriComponentRegex,
+          description:
+            "When the sample was taken. The following characters are prohibited: <>&%;/\\",
         },
         {
           title: "Index Family",
@@ -1044,6 +1124,19 @@ BulkTarget.sample = (function ($) {
           sortSource: Utils.sorting.standardSort("name"),
           getItemLabel: Utils.array.getName,
           getItemValue: Utils.array.getId,
+        },
+        {
+          title: "Probes",
+          type: "text",
+          data: "probes",
+          include: targetCategory === "Tissue Processing",
+          sampleSubcategory: "Single Cell",
+          disabled: true,
+          getData: function (object, limitedApi) {
+            return makeProbesLabel(object.probes);
+          },
+          omit: true,
+          description: "Use the Edit Probes button to add/edit",
         },
         {
           title: "Initial Slides",
@@ -1268,7 +1361,7 @@ BulkTarget.sample = (function ($) {
       );
 
       if (!config.isLibraryReceipt) {
-        columns = columns.concat(BulkUtils.columns.detailedQcStatus());
+        columns = columns.concat(BulkUtils.columns.detailedQcStatus(config.pageMode));
       }
 
       columns.push(
@@ -1481,13 +1574,13 @@ BulkTarget.sample = (function ($) {
         });
     });
 
-    return ["Identity", "Tissue", "Tissue Processing", "Stock", "Aliquot"].filter(function (
-      category
-    ) {
-      return childCategoriesPerClass.every(function (childCategories) {
-        return childCategories.indexOf(category) !== -1;
-      });
-    });
+    return ["Identity", "Tissue", "Tissue Processing", "Stock", "Aliquot"].filter(
+      function (category) {
+        return childCategoriesPerClass.every(function (childCategories) {
+          return childCategories.indexOf(category) !== -1;
+        });
+      }
+    );
   }
 
   function referenceSlideColumn(include, sampleSubcategory) {
@@ -1560,6 +1653,225 @@ BulkTarget.sample = (function ($) {
   function anyMatch(arr1, arr2) {
     return arr1.some(function (x) {
       return arr2.includes(x);
+    });
+  }
+
+  function makeProbesLabel(probes) {
+    if (probes && probes.length) {
+      return "( " + probes.length + " attached)";
+    }
+    return null;
+  }
+
+  function showEditProbesDialog(api) {
+    var samples = api.getData();
+
+    var fields = [];
+    for (var i = 0; i < samples.length; i++) {
+      var sampleClass = api.getValueObject(i, "sampleClassId");
+      if (
+        sampleClass &&
+        sampleClass.sampleCategory === "Tissue Processing" &&
+        sampleClass.sampleSubcategory === "Single Cell"
+      ) {
+        var sample = samples[i];
+        // Note: table row labels are i+1
+        var label = "Row " + (i + 1);
+        if (sample.alias) {
+          label += ": " + sample.alias;
+        } else if (sample.parentAlias) {
+          label += ": " + sample.parentAlias;
+        }
+        fields.push({
+          label: label,
+          property: "includeRow" + i,
+          type: "checkbox",
+        });
+      }
+    }
+    if (!fields.length) {
+      Utils.showOkDialog("Error", [
+        "No Single Cell samples found. Please select Sample Class before editing probes.",
+      ]);
+      return;
+    }
+    fields.unshift({
+      label: "Method",
+      property: "method",
+      type: "select",
+      values: ["Edit custom probes", "Apply probe set", "Remove all probes"],
+      required: true,
+    });
+
+    Utils.showDialog("Edit Probes", "Continue", fields, function (results) {
+      var selectedRows = [];
+      var selectedSamples = [];
+      for (var i = 0; i < samples.length; i++) {
+        if (results["includeRow" + i]) {
+          selectedRows.push(i);
+          selectedSamples.push(samples[i]);
+        }
+      }
+      if (!selectedSamples.length) {
+        Utils.showOkDialog("Error", ["No samples selected"]);
+        return;
+      }
+
+      switch (results.method) {
+        case "Apply probe set":
+          Sample.showAddProbeSetDialog(selectedSamples, function (probes) {
+            selectedSamples.forEach(function (sample) {
+              sample.probes = probes;
+            });
+            api.updateData(
+              selectedRows.map(function (row) {
+                return [row, "probes", makeProbesLabel(probes)];
+              })
+            );
+          });
+          break;
+        case "Edit custom probes":
+          // Custom probes
+          showEditCustomProbesDialog(api, selectedSamples);
+          break;
+        case "Remove all probes":
+          selectedSamples.forEach(function (sample) {
+            sample.probes = [];
+          });
+          api.updateData(
+            selectedRows.map(function (row) {
+              return [row, "probes", makeProbesLabel([])];
+            })
+          );
+          Utils.showOkDialog("Edit Probes", [
+            "All probes have been removed from the selected samples",
+          ]);
+          break;
+        default:
+          throw Error("Unexpected value: " + results.method);
+      }
+    });
+  }
+
+  function showEditCustomProbesDialog(api, selectedSamples) {
+    if (!samplesHaveSameProbes(selectedSamples)) {
+      Utils.showOkDialog("Error", [
+        "Selected samples have different probes. Note that if the samples have already been" +
+          " saved with probes, each sample's probes must be edited individually.",
+      ]);
+      return;
+    }
+
+    var fields = [
+      {
+        label: "Number of probes",
+        property: "count",
+        type: "int",
+        value: selectedSamples[0].probes ? selectedSamples[0].probes.length : null,
+      },
+    ];
+
+    Utils.showDialog("Edit Custom Probes", "Edit", fields, function (results) {
+      if (results.count < 1 || results.count > 1000) {
+        Utils.showOkDialog("Error", ["Number of probes must be between 1 and 1000"]);
+        return;
+      }
+      if (selectedSamples[0].probes && results.count < selectedSamples[0].probes.length) {
+        Utils.showConfirmDialog(
+          "Edit Probes - Warning",
+          "OK",
+          [
+            "Number of probes is less than already present on the " +
+              (selectedSamples > 1 ? "samples" : "sample") +
+              ". This will remove the excess probes. OK to continue?",
+          ],
+          function () {
+            switchToProbesTable(api, selectedSamples, results.count);
+          }
+        );
+      } else {
+        switchToProbesTable(api, selectedSamples, results.count);
+      }
+    });
+  }
+
+  function samplesHaveSameProbes(samples) {
+    if (!samples[0].probes || !samples[0].probes.length) {
+      // ensure all samples have no probes
+      if (
+        samples.some(function (sample) {
+          return sample.probes && sample.probes.length;
+        })
+      ) {
+        return false;
+      }
+    } else {
+      // ensure all samples have the same probes
+      var referenceProbes = samples[0].probes;
+      for (var i = 1; i < samples.length; i++) {
+        var currentProbes = samples[i].probes;
+        if (currentProbes == null || currentProbes.length != referenceProbes.length) {
+          return false;
+        }
+        if (
+          referenceProbes.some(function (referenceProbe) {
+            return !currentProbes.some(function (currentProbe) {
+              return probesEqual(currentProbe, referenceProbe);
+            });
+          })
+        ) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  function probesEqual(one, two) {
+    var fields = sampleProbeTarget.getColumns({}, null).map(Utils.array.get("data"));
+    // Note: A saved sample probe is linked to an individual sample and has its own ID, which means
+    // it is not possible to edit saved probes for multiple samples at once.
+    fields.unshift("id");
+
+    for (var i = 0; i < fields.length; i++) {
+      var field = fields[i];
+      if (one[field] != two[field]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function switchToProbesTable(api, samples, count) {
+    allSamples = api.getData();
+    probeEditingSamples = samples;
+    var referenceProbes = samples[0].probes || [];
+    var probes = [];
+    for (var i = 0; i < count; i++) {
+      if (i < referenceProbes.length) {
+        probes.push(referenceProbes[i]);
+      } else {
+        probes.push({});
+      }
+    }
+    api.rebuildTable(sampleProbeTarget, probes);
+  }
+
+  function switchToSamplesTable(api) {
+    api.validate(function () {
+      var deferred = $.Deferred();
+      // wait a second to allow async HandsOnTable stuff to run before destroying the table (for
+      // some reason that doesn't finish before calling the callback... doesn't cause a real
+      // problem since the table is destroyed anyway, but this avoids JS errors in the console)
+      window.setTimeout(function () {
+        var probes = api.getData();
+        probeEditingSamples.forEach(function (sample) {
+          sample.probes = probes;
+        });
+        api.rebuildTable(BulkTarget.sample, allSamples);
+        deferred.resolve(true);
+      }, 1000);
+      return deferred.promise();
     });
   }
 })(jQuery);

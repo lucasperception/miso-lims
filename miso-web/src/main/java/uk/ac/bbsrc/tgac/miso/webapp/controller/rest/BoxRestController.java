@@ -6,16 +6,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Objects;
-import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -50,28 +42,15 @@ import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.ws.rs.core.Response.Status;
-import net.sf.json.JSONObject;
-import uk.ac.bbsrc.tgac.miso.core.data.Box;
-import uk.ac.bbsrc.tgac.miso.core.data.BoxPosition;
-import uk.ac.bbsrc.tgac.miso.core.data.BoxSize;
+import uk.ac.bbsrc.tgac.miso.core.data.*;
 import uk.ac.bbsrc.tgac.miso.core.data.Boxable.EntityType;
-import uk.ac.bbsrc.tgac.miso.core.data.BoxableId;
-import uk.ac.bbsrc.tgac.miso.core.data.DetailedSample;
-import uk.ac.bbsrc.tgac.miso.core.data.Library;
-import uk.ac.bbsrc.tgac.miso.core.data.Sample;
-import uk.ac.bbsrc.tgac.miso.core.data.SampleIdentity;
-import uk.ac.bbsrc.tgac.miso.core.data.SampleSlide;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.LibraryAliquot;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.StorageLocation;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.StorageLocation.BoxStorageAmount;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.view.box.BoxableView;
 import uk.ac.bbsrc.tgac.miso.core.data.spreadsheet.BoxSpreadSheets;
 import uk.ac.bbsrc.tgac.miso.core.manager.MisoFilesManager;
-import uk.ac.bbsrc.tgac.miso.core.service.BoxService;
-import uk.ac.bbsrc.tgac.miso.core.service.LibraryAliquotService;
-import uk.ac.bbsrc.tgac.miso.core.service.LibraryService;
-import uk.ac.bbsrc.tgac.miso.core.service.SampleService;
-import uk.ac.bbsrc.tgac.miso.core.service.StorageLocationService;
+import uk.ac.bbsrc.tgac.miso.core.service.*;
 import uk.ac.bbsrc.tgac.miso.core.service.exception.ValidationError;
 import uk.ac.bbsrc.tgac.miso.core.service.exception.ValidationResult;
 import uk.ac.bbsrc.tgac.miso.core.util.BoxUtils;
@@ -86,6 +65,7 @@ import uk.ac.bbsrc.tgac.miso.dto.SpreadsheetRequest;
 import uk.ac.bbsrc.tgac.miso.integration.BoxScan;
 import uk.ac.bbsrc.tgac.miso.integration.BoxScanner;
 import uk.ac.bbsrc.tgac.miso.integration.util.IntegrationException;
+import uk.ac.bbsrc.tgac.miso.persistence.LibraryStore;
 import uk.ac.bbsrc.tgac.miso.webapp.controller.AbstractRestController;
 import uk.ac.bbsrc.tgac.miso.webapp.controller.RestException;
 import uk.ac.bbsrc.tgac.miso.webapp.controller.component.AdvancedSearchParser;
@@ -114,7 +94,11 @@ public class BoxRestController extends AbstractRestController {
   @Autowired
   private LibraryService libraryService;
   @Autowired
+  private LibraryStore libraryDao;
+  @Autowired
   private LibraryAliquotService libraryAliquotService;
+  @Autowired
+  private PoolService poolService;
   @Autowired
   private StorageLocationService storageLocationService;
 
@@ -213,7 +197,7 @@ public class BoxRestController extends AbstractRestController {
    * @return JSON object with "hashCode" field representing the hash code of the spreadsheet filename
    */
   @GetMapping(value = "/{boxId}/spreadsheet")
-  public @ResponseBody JSONObject createSpreadsheet(@PathVariable("boxId") Long boxId) {
+  public @ResponseBody ObjectNode createSpreadsheet(@PathVariable("boxId") Long boxId) {
     try {
       return exportBoxContentsForm(boxId);
     } catch (Exception e) {
@@ -229,7 +213,7 @@ public class BoxRestController extends AbstractRestController {
         BoxSpreadSheets::valueOf, response);
   }
 
-  private JSONObject exportBoxContentsForm(Long boxId) throws IOException {
+  private ObjectNode exportBoxContentsForm(Long boxId) throws IOException {
     Box box = boxService.get(boxId);
 
     List<List<String>> boxContents = getBoxContents(box);
@@ -243,7 +227,9 @@ public class BoxRestController extends AbstractRestController {
       createPlainBoxSpreadsheet(f, name, alias, boxContents);
     }
 
-    return JSONObject.fromObject("{hashCode: " + f.getName().hashCode() + "}");
+    ObjectNode response = getObjectMapper().createObjectNode();
+    response.put("hashCode", f.getName().hashCode());
+    return response;
   }
 
   /**
@@ -534,7 +520,7 @@ public class BoxRestController extends AbstractRestController {
    *         that were successfully read (if applicable) and the positions at which the error was
    *         triggered (if applicable)
    */
-  @PostMapping(value = "/{boxId}/scan")
+  @PostMapping(value = "/{boxId}/update-locations-scan")
   public @ResponseBody ScanResultsDto getBoxScan(@PathVariable(required = true) int boxId,
       @RequestBody(required = true) ScanRequest requestData) {
     try {
@@ -649,8 +635,221 @@ public class BoxRestController extends AbstractRestController {
     }
   }
 
+  @PostMapping(value = "/{boxId}/assign-barcodes-scan")
+  public @ResponseBody ScanResultsDto getBarcodeScan(
+          @PathVariable(required = true) int boxId,
+          @RequestBody(required = true) ScanRequest requestData){
+
+      try{
+
+          BoxScanner boxScanner = boxScanners.get(requestData.getScannerName());
+          if(boxScanner == null) {
+              throw new RestException("Invalid scanner specified", Status.BAD_REQUEST);
+          }
+          BoxScan scan = boxScanner.getScan();
+          if(scan == null){
+              throw new RestException("The scanner did not detect a box!", Status.CONFLICT);
+          }
+
+          Map<String, String> barcodesByPosition = scan.getBarcodesMap();
+          Set<String> validBarcodes = barcodesByPosition.values().stream()
+                  .filter(barcode -> isRealBarcode(scan, barcode)).collect(Collectors.toSet());
+
+          Map<String, List<String>> positionByBarcode = barcodesByPosition.entrySet().stream()
+                  .filter(e -> isRealBarcode(scan, e.getValue()))
+                  .collect(Collectors.groupingBy(Map.Entry::getValue,
+                          Collectors.mapping(Map.Entry::getKey, Collectors.toList())));
+
+          Set<String> duplicateBarcodes = positionByBarcode.entrySet().stream()
+                  .filter(e -> e.getValue().size()>1)
+                  .map(Map.Entry::getKey)
+                  .collect(Collectors.toSet());
+
+          List<ErrorMessage> errors = new ArrayList<>();
+          duplicateBarcodes.forEach(bc -> {
+              ErrorMessage dto = new ErrorMessage();
+              dto.setMessage(String.format("Duplicate barcode '%s' scanned at '%s'",bc, positionByBarcode.get(bc)));
+              errors.add(dto);
+          });
+
+          long totalReal = barcodesByPosition.values().stream()
+                  .filter(b -> isRealBarcode(scan, b))
+                  .count();
+          if(validBarcodes.size() != totalReal) {
+              ErrorMessage e = new ErrorMessage();
+              e.setMessage("Duplicate barcode detected");
+              errors.add(e);
+          }
+          Box box =  getBox(boxId);
+          Map<String, BoxableView> boxablesByPosition = boxService.getBoxContents(boxId).stream()
+                  .collect(Collectors.toMap(BoxableView::getBoxPosition, Function.identity(), (a,b) -> a));
+
+          List<BoxableDto> items = new ArrayList<>();
+          List<DiffMessage> diffs = new ArrayList<>();
+
+          Set<String> allPositions = new HashSet<>();
+          box.getSize().positionStream().forEach(allPositions :: add);
+          allPositions.addAll(boxablesByPosition.keySet());
+          allPositions.addAll(barcodesByPosition.keySet());
+
+          if(box.getSize().getRows() != scan.getRowCount() || box.getSize().getColumns() != scan.getColumnCount()){
+              throw new RestException(
+                      String.format("Box is %dx%d, but scanner detected %dx%d.",
+                              box.getSize().getRows(), box.getSize().getColumns(),
+                              scan.getRowCount(), scan.getColumnCount()), Status.BAD_REQUEST
+              );
+          }
+
+          allPositions.stream().sorted().forEach(position -> {
+              BoxableView existingItem = boxablesByPosition.get(position);
+              String scannedBarcode = barcodesByPosition.get(position);
+              boolean hasScannedBarcode = scannedBarcode != null && isRealBarcode(scan, scannedBarcode);
+
+              if(existingItem != null) {
+                  BoxableDto itemDto = Dtos.asDto(existingItem);
+                  itemDto.setCoordinates(position);
+                  String currentBarcode = existingItem.getIdentificationBarcode();
+
+                  if(hasScannedBarcode && !scannedBarcode.equals(currentBarcode)){
+
+                      DiffMessage diff = new DiffMessage();
+                      diff.setAction("changed");
+                      diff.setOriginal(Dtos.asDto(existingItem));
+
+                      BoxableDto modified = Dtos.asDto(existingItem);
+                      modified.setIdentificationBarcode(scannedBarcode);
+
+                      diff.setModified(modified);
+                      diffs.add(diff);
+
+                      itemDto.setIdentificationBarcode(scannedBarcode);
+                      if(currentBarcode != null) {
+                          ErrorMessage err = new ErrorMessage();
+                          err.setCoordinates(position);
+                          err.setMessage(String.format(
+                                  "Barcode at %s position will be changed from \"%s\" to \"%s\"", position, currentBarcode, scannedBarcode
+                          ));
+                          errors.add(err);
+                      }
+
+                  } else  if(!hasScannedBarcode){
+                      ErrorMessage err = new ErrorMessage();
+                      err.setCoordinates(position);
+                      err.setMessage("Item at "+ position + " has no scanned barcode (Scanner returned " + (scannedBarcode == null ? "nothing" : scannedBarcode) + ")");
+                      errors.add(err);
+                  }
+                  items.add(itemDto);
+              } else {
+
+                  if(hasScannedBarcode) {
+
+                      BoxableDto placeholderDto = new BoxableDto();
+                      placeholderDto.setCoordinates(position);
+                      placeholderDto.setIdentificationBarcode(scannedBarcode);
+                      placeholderDto.setAlias("New Barcode");
+                      placeholderDto.setName(scannedBarcode);
+                      items.add(placeholderDto);
+
+                      ErrorMessage err = new ErrorMessage();
+                      err.setCoordinates(position);
+                      err.setMessage(String.format(
+                              "Barcode \"%s\" scanned at %s but position is empty in MISO",
+                              scannedBarcode, position
+                      ));
+                      errors.add(err);
+                  }
+              }
+          });
+
+
+          ScanResultsDto results = new ScanResultsDto();
+          results.setItems(items);
+          results.setErrors(errors);
+          results.setDiffs(diffs);
+          results.setRows(scan.getRowCount());
+          results.setColumns(scan.getColumnCount());
+
+          return results;
+
+      } catch (IntegrationException | IOException e){
+            throw new RestException("Error scanning box: " + e.getMessage(),
+                    Status.INTERNAL_SERVER_ERROR);
+      }
+  }
+
+  @PostMapping(value = "/{boxId}/assign-barcodes-save")
+  public @ResponseBody BoxDto assignBarcodes(
+          @PathVariable(required = true) int boxId,
+          @RequestBody(required = true) ScanResultsDto results) {
+
+      try{
+          Box box = getBox(boxId);
+          Map<String, BoxableView> boxableByPosition = boxService.getBoxContents(boxId).stream()
+                  .collect(Collectors.toMap(BoxableView::getBoxPosition, Function.identity()));
+
+
+          if (results.getDiffs() != null) {
+              for (DiffMessage diff : results.getDiffs()) {
+
+
+                  if( "changed".equals(diff.getAction()) && diff.getModified() != null ){
+                      BoxableDto mod = diff.getModified();
+                      String position = mod.getCoordinates();
+                      String newBarcode = mod.getIdentificationBarcode();
+
+                      if(position != null && newBarcode != null){
+                          BoxableView existing = boxableByPosition.get(position);
+                          if(existing != null ){
+                              updateEntityBarcode(existing, newBarcode);
+                          } else {
+                              log.warn("Barcode scan ignored, no existing item found at position {} - barcode {}", position, newBarcode);
+                          }
+                      }
+                  }
+              }
+          }
+          return getBoxDtoWithBoxables(boxId);
+
+      } catch (IOException e){
+          throw new RestException("Error assigning barcodes: "+ e.getMessage(),
+                  Status.INTERNAL_SERVER_ERROR);
+
+      }
+  }
+
+  private void updateEntityBarcode(BoxableView view, String newBarcode) throws IOException {
+      switch (view.getEntityType()) {
+          case SAMPLE:
+              Sample sample = sampleService.get(view.getId());
+              sample.setIdentificationBarcode(newBarcode);
+              sampleService.update(sample);
+              break;
+
+          case LIBRARY_ALIQUOT:
+              LibraryAliquot ali = libraryAliquotService.get(view.getId());
+              ali.setIdentificationBarcode(newBarcode);
+              libraryAliquotService.update(ali);
+              break;
+
+          case LIBRARY:
+              Library library = libraryService.get(view.getId());
+              library.setIdentificationBarcode(newBarcode);
+              libraryService.update(library);
+              break;
+
+          case POOL:
+              Pool pool = poolService.get(view.getId());
+              pool.setIdentificationBarcode(newBarcode);
+              poolService.update(pool);
+              break;
+
+          default:
+              log.warn("Unsupported entity type for barcode assignment: {}", view.getEntityType());
+      }
+  }
+
   private static boolean isRealBarcode(BoxScan scan, String barcode) {
-    return !barcode.equals(scan.getNoTubeLabel()) && !barcode.equals(scan.getNoReadLabel());
+    return barcode != null && !barcode.isEmpty() && !barcode.equals(scan.getNoTubeLabel()) && !barcode.equals(scan.getNoReadLabel());
   }
 
   @DeleteMapping("/{boxId}/positions/{position}")
@@ -990,8 +1189,8 @@ public class BoxRestController extends AbstractRestController {
 
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(MediaType.TEXT_PLAIN);
-    response.setHeader("Content-Disposition",
-        String.format("attachment; filename=FA-%s.txt", box.getAlias().replace(' ', '_')));
+    String filename = String.format("FA-%s.txt", box.getAlias().replace(' ', '_'));
+    MisoWebUtils.addAttachmentContentDisposition(response, filename);
     return new HttpEntity<>(sheet.getBytes(), headers);
   }
 

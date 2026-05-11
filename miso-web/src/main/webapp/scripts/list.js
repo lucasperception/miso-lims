@@ -146,7 +146,7 @@ ListUtils = (function ($) {
     },
     requisition: {
       term: "req:TEXT",
-      help: "Checks whether an item has the specified requisition ID",
+      help: "Checks whether an item has the specified requisition (alias)",
     },
     stage: {
       term: "stage:TEXT",
@@ -166,7 +166,7 @@ ListUtils = (function ($) {
     },
     model: {
       term: "model:TEXT",
-      help: "Checks whether the item's model matches",
+      help: "Checks whether the item's instrument model matches",
     },
     archived: {
       term: "is:archived OR not:archived",

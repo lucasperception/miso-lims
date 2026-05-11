@@ -10,7 +10,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
-import org.apache.commons.lang.exception.ExceptionUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,16 +30,7 @@ import uk.ac.bbsrc.tgac.miso.core.data.impl.TargetedSequencing;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.workset.Workset;
 import uk.ac.bbsrc.tgac.miso.core.exception.MisoNamingException;
 import uk.ac.bbsrc.tgac.miso.core.security.AuthorizationManager;
-import uk.ac.bbsrc.tgac.miso.core.service.BarcodableReferenceService;
-import uk.ac.bbsrc.tgac.miso.core.service.BoxService;
-import uk.ac.bbsrc.tgac.miso.core.service.DetailedQcStatusService;
-import uk.ac.bbsrc.tgac.miso.core.service.KitDescriptorService;
-import uk.ac.bbsrc.tgac.miso.core.service.LibraryAliquotService;
-import uk.ac.bbsrc.tgac.miso.core.service.LibraryDesignCodeService;
-import uk.ac.bbsrc.tgac.miso.core.service.LibraryService;
-import uk.ac.bbsrc.tgac.miso.core.service.PoolService;
-import uk.ac.bbsrc.tgac.miso.core.service.TargetedSequencingService;
-import uk.ac.bbsrc.tgac.miso.core.service.WorksetService;
+import uk.ac.bbsrc.tgac.miso.core.service.*;
 import uk.ac.bbsrc.tgac.miso.core.service.exception.ValidationError;
 import uk.ac.bbsrc.tgac.miso.core.service.exception.ValidationException;
 import uk.ac.bbsrc.tgac.miso.core.service.exception.ValidationResult;
@@ -79,6 +70,8 @@ public class DefaultLibraryAliquotService implements LibraryAliquotService {
   private BoxService boxService;
   @Autowired
   private WorksetService worksetService;
+  @Autowired
+  private FileAttachmentService fileAttachmentService;
   @Autowired
   private BarcodableReferenceService barcodableReferenceService;
   @Autowired
@@ -343,6 +336,7 @@ public class DefaultLibraryAliquotService implements LibraryAliquotService {
         && (beforeChange == null || beforeChange.getKitLot() != null)) {
       ValidationError.forRequired("kitLot");
     }
+    validateUriComponent("kitLot", aliquot.getKitLot(), errors);
 
     if (!errors.isEmpty()) {
       throw new ValidationException(errors);
@@ -404,6 +398,10 @@ public class DefaultLibraryAliquotService implements LibraryAliquotService {
 
   public void setWorksetService(WorksetService worksetService) {
     this.worksetService = worksetService;
+  }
+
+  public void setFileAttachmentService(FileAttachmentService fileAttachmentService) {
+    this.fileAttachmentService = fileAttachmentService;
   }
 
   @Override

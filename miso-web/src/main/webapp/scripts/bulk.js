@@ -3,7 +3,8 @@ BulkUtils = (function ($) {
    * BulkTarget structure: {
    *   getSaveUrl: required function(config) returning url for bulk save. POST is used for create
    *       and PUT for edits
-   *   getSaveProgressUrl: required function(operationId) returning url for checking save progress
+   *   getSaveProgressUrl: required function(operationId, config) returning url for checking save
+   *       progress
    *   getUserManualUrl: optional (recommended) function() returning url of specific user manual
    *       page to set on 'Help' link
    *   description: optional string; help text to include in the page Quick Help
@@ -44,12 +45,18 @@ BulkUtils = (function ($) {
    *   title: required string; column heading
    *   type: required string (text|int|decimal|date|time|dropdown); type of field
    *   disabled: optional boolean (default: false); if true, the field is read-only
+   *   preventImport: optional boolean (default: false); if true, the field will not be imported,
+   *       and will cause an error if the import data does not match the data in the table. Should
+   *       generally be used for read-only (disabled) identifier columns and other columns that can
+   *       never be modified
    *   data: required string; JSON property to use for value
    *   getData: optional function(object, limitedApi) returning string; get value from object
    *       instead of mapping normally. This should return the value to display in the cell (for
    *       a dropdown column, return the label rather than the value)
-   *   setData: optional function(object, value, rowIndex, api); set value to object instead of
-   *       doing regular mapping
+   *   setData: optional function(object, value, rowIndex, api, isSave); set value to object
+   *       instead of doing regular mapping. isSave is true only when the data is being updated
+   *       specifically to be saved; this allows control when you want one value to be used on the
+   *       front end and a different value to be saved
    *   include: optional boolean (default: true); determines whether the column is displayed
    *   includeSaved: optional boolean (default: true); if false, the column will be hidden after
    *       save. Will have no effect if 'include' is false
@@ -71,7 +78,8 @@ BulkUtils = (function ($) {
    *       be set when the field is *always* required. Otherwise, may be controlled with
    *       updateField (see API object below)
    *   maxLength: optional integer; maximum number of characters for text input
-   *   regex: optional regex string; validation regex for text input
+   *   regex: optional regex string; validation regex for text input. A description that explains
+   *       the pattern should be added
    *   initial: optional string; value to initialize field value to when missing. For dropdowns,
    *       this should be the item label. Affects new items only unless initializeOnEdit is set to
    *       true
@@ -118,8 +126,16 @@ BulkUtils = (function ($) {
    *       updateField calls to improve performance. changes is an array of arrays where the inner
    *       arrays have three elements - rowIndex, dataProperty, and newValue
    *   isSaved: function(); returns true if the data has been saved; else false,
-   *   getData: function(); returns original data updated with changes made in the table. For use
-   *       in custom actions only - will not work in onChange
+   *   getData: function(); returns original data updated with changes made in the table. This will
+   *       work in work in onChange functions *after* the table is built, but not during initial
+   *       population. This means that either the column initOnChange needs to be false, or you
+   *       need to check that this function exists before using, and not depend on it during
+   *       initial population
+   *   validate: function(onValid); validates the table, displays any errors, and calls the onValid
+   *       callback if valid. The table is placed into a loading state (controls disabled) while
+   *       validating, and only reactivated if validation fails. The onValid function may return a
+   *       promise to indicate when it has completed. If the promise is resolved with a value of
+   *       true, the table will be reactivated
    *   rebuildTable: function(target, data); destroys the table and rebuilds using the provided
    *       BulkTarget and data. For use in custom actions only - will not work in onChange
    * }
@@ -252,6 +268,7 @@ BulkUtils = (function ($) {
         type: "text",
         data: "name",
         disabled: true,
+        preventImport: true,
       },
 
       simpleAlias: function (maxLength) {
@@ -334,9 +351,12 @@ BulkUtils = (function ($) {
             data: "receivedTime",
             includeSaved: false,
             getData: function (object) {
-              return object.receivedTime
-                ? Utils.formatTwelveHourTime(object.receivedTime.split(" ")[1])
-                : null;
+              if (!object.receivedTime) {
+                return null;
+              }
+              var time = object.receivedTime.split(" ")[1];
+              var timeParts = time.split(":");
+              return Utils.formatTwelveHourTime(timeParts[0], timeParts[1]);
             },
             setData: function (object, value, rowIndex, api) {
               // Do nothing - handled in Date of Receipt
@@ -758,17 +778,31 @@ BulkUtils = (function ($) {
         },
       ],
 
-      detailedQcStatus: function () {
+      detailedQcStatus: function (pageMode) {
+        // id of -1 is used for "Not Ready" here so null can represent nothing selected and force
+        // the user to explicitly choose "Not Ready" if they want. "Not Ready" must be saved as
+        // null though, and null should be loaded as "Not Ready" when editing
         return [
           {
             title: "QC Status",
             type: "dropdown",
             data: "detailedQcStatusId",
+            getData: function (object, limitedApi) {
+              if (!object.detailedQcStatusId) {
+                return pageMode === "edit" ? "Not Ready" : null;
+              } else if (object.detailedQcStatusId === -1) {
+                return "Not Ready";
+              }
+              return Utils.array.findUniqueOrThrow(
+                Utils.array.idPredicate(object.detailedQcStatusId),
+                Constants.detailedQcStatuses
+              ).description;
+            },
             required: true,
             source: function (data, api) {
               return [
                 {
-                  id: null,
+                  id: api.isSaved() ? null : -1,
                   description: "Not Ready",
                 },
               ].concat(
@@ -782,7 +816,12 @@ BulkUtils = (function ($) {
             sortSource: Utils.sorting.detailedQcStatusSort,
             getItemLabel: Utils.array.get("description"),
             getItemValue: Utils.array.getId,
-            initial: " ", // user must explicitly choose if not ready (null)
+            setData: function (object, value, rowIndex, api, isSave) {
+              if (isSave && value === -1) {
+                value = null;
+              }
+              object.detailedQcStatusId = value;
+            },
             onChange: function (rowIndex, newValue, api) {
               var status = Constants.detailedQcStatuses.find(function (item) {
                 return item.description === newValue;
@@ -1864,7 +1903,7 @@ BulkUtils = (function ($) {
     }
   }
 
-  function makeTable(target, config, data) {
+  function makeTable(target, config, data, skipInitialValues) {
     var hotContainer = document.getElementById(CONTAINER_ID);
 
     if (target.prepareData) {
@@ -1882,7 +1921,7 @@ BulkUtils = (function ($) {
     var targetDescription = target.getDescription ? target.getDescription(config) : null;
     addQuickHelp(targetDescription, columns);
 
-    var tableData = makeTableData(data, columns, config, api);
+    var tableData = makeTableData(data, columns, config, api, skipInitialValues);
     var cellMetas = processDropdownSources(columns, data, tableData, api);
     processFormatters(cellMetas, columns, data);
     var listeners = processOnChangeListeners(cellMetas, columns, tableData);
@@ -2161,7 +2200,7 @@ BulkUtils = (function ($) {
     };
   }
 
-  function makeTableData(data, columns, config, api) {
+  function makeTableData(data, columns, config, api, skipInitialValues) {
     var tableData = [];
     for (var i = 0; i < data.length; i++) {
       var rowData = {};
@@ -2171,6 +2210,7 @@ BulkUtils = (function ($) {
         }
         var defaultValue = null;
         if (
+          !skipInitialValues &&
           column.hasOwnProperty("initial") &&
           !tableSaved &&
           (column.initializeOnEdit || config.pageMode !== "edit")
@@ -2420,8 +2460,12 @@ BulkUtils = (function ($) {
 
     // Note: below functions not available in processOnChangeListeners' tempApi
     api.getData = function () {
-      updateSourceData(data, hot, columns, api);
+      updateSourceData(data, hot, columns, api, false);
       return data;
+    };
+
+    api.validate = function (onValid) {
+      return validate(hot, columns, onValid);
     };
 
     api.rebuildTable = function (target, data) {
@@ -2700,7 +2744,7 @@ BulkUtils = (function ($) {
     var actions = target.getCustomActions ? target.getCustomActions(config, api) : [];
     actions.push(
       makeSortAction(hot, target, columns, api, config, data),
-      makeImportAction(hot),
+      makeImportAction(hot, columns),
       makeExportAction(hot)
     );
     $(ACTION_BAR)
@@ -2800,7 +2844,7 @@ BulkUtils = (function ($) {
             makeOrderField("order3"),
           ],
           function (results) {
-            updateSourceData(data, hot, columns, api);
+            updateSourceData(data, hot, columns, api, false);
             var sorted = data
               .map(function (dataRow, index) {
                 return {
@@ -2839,7 +2883,7 @@ BulkUtils = (function ($) {
     };
   }
 
-  function makeImportAction(hot) {
+  function makeImportAction(hot, hotColumns) {
     return {
       name: "Import",
       action: function () {
@@ -2892,19 +2936,19 @@ BulkUtils = (function ($) {
                       contentType: false,
                       processData: false,
                     })
-                    .done(function (columnData) {
+                    .done(function (importColumns) {
                       dialog.dialog("close");
                       Utils.showWorkingDialog("Import", function () {
                         var hotHeaders = hot.getColHeader();
                         // validate column headings and row count
                         var errorCols = [];
                         var maxRowLength = 0;
-                        columnData.forEach(function (column) {
-                          if (hotHeaders.indexOf(column.heading) === -1) {
-                            errorCols.push(column.heading);
+                        importColumns.forEach(function (importColumn) {
+                          if (hotHeaders.indexOf(importColumn.heading) === -1) {
+                            errorCols.push(importColumn.heading);
                           }
-                          if (column.data.length > maxRowLength) {
-                            maxRowLength = column.data.length;
+                          if (importColumn.data.length > maxRowLength) {
+                            maxRowLength = importColumn.data.length;
                           }
                         });
                         if (errorCols.length) {
@@ -2931,13 +2975,28 @@ BulkUtils = (function ($) {
                         }
 
                         // set values from spreadsheet
+                        var tableData = hot.getData();
                         var changes = [];
-                        columnData.forEach(function (column) {
-                          var columnIndex = hotHeaders.indexOf(column.heading);
-                          for (var rowIndex = 0; rowIndex < column.data.length; rowIndex++) {
-                            changes.push([rowIndex, columnIndex, column.data[rowIndex]]);
+                        for (var i = 0; i < importColumns.length; i++) {
+                          var importColumn = importColumns[i];
+                          var columnIndex = hotHeaders.indexOf(importColumn.heading);
+                          for (var rowIndex = 0; rowIndex < importColumn.data.length; rowIndex++) {
+                            if (hotColumns[columnIndex].preventImport) {
+                              if (
+                                tableData[rowIndex][columnIndex] !== importColumn.data[rowIndex]
+                              ) {
+                                Utils.showOkDialog("Error", [
+                                  "Mismatched data found in '" +
+                                    importColumn.heading +
+                                    "' column. Make sure the table and spreadsheet are sorted consistently, and you have not changed values in this read-only column.",
+                                ]);
+                                return true;
+                              }
+                            } else {
+                              changes.push([rowIndex, columnIndex, importColumn.data[rowIndex]]);
+                            }
                           }
-                        });
+                        }
 
                         // set data multiple times to allow for onchange effects to cascade
                         // changes happen quickly, but still asynchronously, so a delay is required in-between
@@ -3023,18 +3082,8 @@ BulkUtils = (function ($) {
     $(SAVE).click(function () {
       showLoading(true, false);
       clearMessages();
-      hot.validateCells(function (valid) {
-        if (!valid) {
-          var message =
-            "Please fix highlighted cells. See the Quick Help section " +
-            "(above) for additional information regarding specific fields.";
-          var errors = collectValidationErrors(hot, columns);
-          showValidationErrors(message, errors, hot, columns);
-          showLoading(false, true);
-          return;
-        }
-
-        updateSourceData(data, hot, columns, api);
+      validate(hot, columns, function () {
+        updateSourceData(data, hot, columns, api, true);
 
         $.when(target.confirmSave ? target.confirmSave(data, config, api) : null)
           .then(function () {
@@ -3047,6 +3096,31 @@ BulkUtils = (function ($) {
             }
           });
       });
+    });
+  }
+
+  function validate(hot, columns, onValid) {
+    showLoading(true, false);
+    hot.validateCells(function (valid) {
+      if (!valid) {
+        var message =
+          "Please fix highlighted cells. See the Quick Help section " +
+          "(above) for additional information regarding specific fields.";
+        var errors = collectValidationErrors(hot, columns);
+        showValidationErrors(message, errors, hot, columns);
+        showLoading(false, true);
+        return;
+      }
+
+      $.when(onValid())
+        .then(function (reactivate) {
+          if (reactivate) {
+            showLoading(false, true);
+          }
+        })
+        .fail(function () {
+          showLoading(false, true);
+        });
     });
   }
 
@@ -3151,7 +3225,7 @@ BulkUtils = (function ($) {
                 $.ajax({
                   dataType: "json",
                   type: "GET",
-                  url: target.getSaveProgressUrl(update.operationId),
+                  url: target.getSaveProgressUrl(update.operationId, config),
                   contentType: "application/json; charset=utf8",
                 })
                   .done(function (progressData) {
@@ -3205,6 +3279,7 @@ BulkUtils = (function ($) {
 
   function showLoading(loading, allowSave) {
     Utils.ui.setDisabled(SAVE, loading || allowSave === false);
+    Utils.ui.setDisabled("#bulkactions .ui-button", loading);
     if (loading) {
       $(LOADER).removeClass("hidden");
     } else {
@@ -3212,7 +3287,7 @@ BulkUtils = (function ($) {
     }
   }
 
-  function updateSourceData(data, hot, columns, api) {
+  function updateSourceData(data, hot, columns, api, isSave) {
     var tableData = hot.getData();
     for (var rowIndex = 0; rowIndex < tableData.length; rowIndex++) {
       for (var colIndex = 0; colIndex < columns.length; colIndex++) {
@@ -3245,7 +3320,7 @@ BulkUtils = (function ($) {
           }
         }
         if (column.setData) {
-          column.setData(data[rowIndex], value, rowIndex, api);
+          column.setData(data[rowIndex], value, rowIndex, api, isSave);
         } else {
           Utils.setObjectField(data[rowIndex], column.data, value);
         }
@@ -3270,7 +3345,7 @@ BulkUtils = (function ($) {
     $(ACTION_BAR).empty();
     $(SAVE).off("click");
     hot.destroy();
-    makeTable(target, config, data);
+    makeTable(target, config, data, true);
   }
 
   function showBulkActions(target, config, data) {

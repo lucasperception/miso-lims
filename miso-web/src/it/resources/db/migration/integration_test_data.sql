@@ -3,7 +3,7 @@ INSERT INTO User (userId, active, admin, fullName, internal, loginName, roles, p
 (3,1,0,'user',1,'user','ROLE_INTERNAL','{bcrypt}$2a$10$vqYii//w2shSZnt/4uNyIeeU4FGQIB4QJeisv9l16xVRQ1lTOghIO','user@user.user'), -- password 'user'
 (4,1,0,'Harry Henderson', 1, 'hhenderson', 'ROLE_INTERNAL', '{bcrypt}$2a$10$vqYii//w2shSZnt/4uNyIeeU4FGQIB4QJeisv9l16xVRQ1lTOghIO', 'hhenderson@somewhere.maybe');
 
-INSERT INTO RunLibraryQcStatus(statusId, description, qcPassed) VALUES
+INSERT INTO RunItemQcStatus(statusId, description, qcPassed) VALUES
 (1, 'Passed', TRUE),
 (2, 'Failed', FALSE),
 (3, 'Top-up required', NULL),
@@ -502,11 +502,11 @@ INSERT INTO Study (studyId, name, project_projectId, alias, studyTypeId, creator
 (3, 'STU3', 3, 'Study Three', 1, 1, '2020-02-20 11:53:00', 1, '2020-02-20 11:53:00'),
 (400, 'STU400', 400, 'UI Test Study', 1, 1, '2018-04-23 15:08:00', 1, '2018-04-23 15:08:00');
 
-INSERT INTO Assay(assayId, alias, version, archived) VALUES
-(1, 'Main Assay', '1.0', FALSE),
-(2, 'Alternate Assay', '1.0', TRUE),
-(3, 'Alternate Assay', '2.0', FALSE),
-(4, 'Bad Assay', '1.0', FALSE);
+INSERT INTO Assay(assayId, alias, version, archived, creator, created, lastModifier, lastModified) VALUES
+(1, 'Main Assay', '1.0', FALSE, 1, '2026-04-07 08:05:00', 1, '2026-04-07 08:05:00'),
+(2, 'Alternate Assay', '1.0', TRUE, 1, '2026-04-07 08:05:00', 1, '2026-04-07 08:05:00'),
+(3, 'Alternate Assay', '2.0', FALSE, 1, '2026-04-07 08:05:00', 1, '2026-04-07 08:05:00'),
+(4, 'Bad Assay', '1.0', FALSE, 1, '2026-04-07 08:05:00', 1, '2026-04-07 08:05:00');
 
 INSERT INTO Metric(metricId, alias, category, thresholdType, units) VALUES
 (1, 'Container Intact', 'RECEIPT', 'BOOLEAN', NULL),
@@ -547,9 +547,18 @@ INSERT INTO Assay_AssayTest(assayId, testId) VALUES
 (1, 2),
 (1, 3);
 
+INSERT INTO ProbeSet(probeSetId, name) VALUES
+(1, 'Test Probes'),
+(2, 'Empty Set');
+
+INSERT INTO ProbeSetProbe(probeId, probeSetId, identifier, name, readNumber, pattern, sequence, featureType) VALUES
+(1, 1, 'sp1', 'set probe 1', 'R2', '5PNNNNNNNNNN(BC)', 'AAGTATGCCCTACGA', 'ANTIBODY_CAPTURE'),
+(2, 1, 'sp2', 'set probe 2', 'R2', '5PNNNNNNNNNN(BC)', 'GGATAACCGCGCTTT', 'ANTIBODY_CAPTURE');
+
 INSERT INTO Requisition(requisitionId, alias, creator, created, lastModifier, lastModified) VALUES
 (1, 'Req One', 1, '2021-07-21 11:31:00', 1, '2021-07-21 11:31:00'),
-(2, 'Req Two', 3, '2021-07-21 11:31:00', 3, '2021-07-21 11:31:00');
+(2, 'Req Two', 3, '2021-07-21 11:31:00', 3, '2021-07-21 11:31:00'),
+(2201, 'Req TestQc', 1, '2021-07-21 11:31:00', 1, '2021-07-21 11:31:00');
 
 INSERT INTO Requisition_Assay(requisitionId, assayId) VALUES
 (1, 1),
@@ -634,6 +643,17 @@ INSERT INTO Sample (sampleId, project_projectId, name, alias, description, ident
 (4443, 4440, 'SAM4443', 'PROP_0001_nn_n_1-1_SL01', NULL, NULL, 'GENOMIC', 1, NULL, NULL, NULL, NULL, 1, '2017-10-26 14:40:00', 1, '2017-10-26 14:40:00',
   FALSE, FALSE, 24, 4442, 1, NULL, NULL, NULL, NULL, NULL, NULL, 0, 'Slide',
   3, 3);
+
+-- Single Cell
+INSERT INTO Sample (sampleId, project_projectId, name, alias, description, identificationBarcode, sampleType, scientificNameId, volume, volumeUnits, concentration, concentrationUnits, creator, created, lastModifier, lastModified,
+  nonStandardAlias, isSynthetic, sampleClassId, parentId, siblingNumber, groupId, groupDescription, detailedQcStatusId, detailedQcStatusNote, qcUser, qcDate, archived, discriminator) VALUES
+(15, 3, 'SAM15', 'TEST_SINGLE_CELL', NULL, NULL, 'GENOMIC', 1, NULL, NULL, NULL, NULL, 1, '2026-02-04 11:18:00', 1, '2026-02-04 11:18:00',
+  TRUE, FALSE, 25, 2, 1, NULL, NULL, NULL, NULL, NULL, NULL, FALSE, 'SingleCell');
+
+INSERT INTO SampleProbe(probeId, sampleId, identifier, name, readNumber, pattern, sequence, featureType) VALUES
+(1, 15, 'C0001', 'probe 1', 'R2', '5PNNNNNNNNNN(BC)', 'GCATTCTGTCACCTA', 'ANTIBODY_CAPTURE'),
+(2, 15, 'C0002', 'probe 2', 'R2', '5PNNNNNNNNNN(BC)', 'CTACGACGTAGAAGA', 'ANTIBODY_CAPTURE'),
+(3, 15, 'C0003', 'probe 3', 'R2', '5PNNNNNNNNNN(BC)', 'CTCAGATGGAGTATG', 'ANTIBODY_CAPTURE');
 
 -- Tissue Pieces
 INSERT INTO Sample (sampleId, project_projectId, name, alias, description, identificationBarcode, sampleType, scientificNameId, volume, volumeUnits, concentration, concentrationUnits, creator, created, lastModifier, lastModified,
@@ -1237,13 +1257,15 @@ INSERT INTO QCType(qcTypeId, name, description, qcTarget, units, archived, preci
 (107, 'test edit qc', '', 'Pool', 'test units', FALSE, 2, 'NONE', FALSE),
 (108, 'update volume qc', '', 'Pool', 'µL', FALSE, 2, 'VOLUME', TRUE),
 (109, 'update concentration qc', '', 'Pool', 'nM', FALSE, 2, 'CONCENTRATION', TRUE),
-(110, 'unused qc', '', 'Sample', 'things', FALSE, 2, 'NONE', FALSE);
+(110, 'unused qc', '', 'Sample', 'things', FALSE, 2, 'NONE', FALSE),
+(111, 'test edit qc', '', 'Requisition', 'test units', FALSE, 2, 'NONE', FALSE);
 
 INSERT INTO QcControl(controlId, qcTypeId, alias) VALUES
 (1, 110, 'standard control');
 
-INSERT INTO SampleQC(sample_sampleId, creator, date, type, results, created, lastModified) VALUES
-(2201, 1, '2018-07-10', 101, 4.3, '2018-07-10 14:29:00', '2018-07-10 14:29:00');
+INSERT INTO SampleQC(qcId, sample_sampleId, creator, date, type, results, created, lastModified) VALUES
+(1, 2201, 1, '2018-07-10', 101, 4.3, '2018-07-10 14:29:00', '2018-07-10 14:29:00'),
+(2, 4447, 3, '2025-07-10', 102, 8.9, '2025-07-10 14:29:00', '2025-07-10 14:29:00');
 
 INSERT INTO WorksetCategory(categoryId, alias) VALUES
 (1, 'Category A'),
@@ -1260,16 +1282,23 @@ INSERT INTO Workset(worksetId, alias, description, creator, created, lastModifie
 (1, 'Workset One', 'Workset One description', 1, '2018-08-03 13:12:00', 1, '2018-08-03 13:12:00'),
 (2, 'Workset Two', 'Workset Two description', 3, '2018-08-03 13:12:00', 3, '2018-08-03 13:12:00');
 
-INSERT INTO LibraryQC(library_libraryId, creator, date, type, results, created, lastModified) VALUES
-(2201, 1, '2018-07-10', 104, 4.3, '2018-07-10 14:29:00', '2018-07-10 14:29:00');
+INSERT INTO LibraryQC(qcId, library_libraryId, creator, date, type, results, created, lastModified) VALUES
+(1, 2201, 1, '2018-07-10', 104, 4.3, '2018-07-10 14:29:00', '2018-07-10 14:29:00');
 
-INSERT INTO PoolQC(pool_poolId, creator, date, type, results, created, lastModified) VALUES
-(2201, 1, '2018-07-10', 107, 4.3, '2018-07-10 14:29:00', '2018-07-10 14:29:00');
+INSERT INTO PoolQC(qcId, pool_poolId, creator, date, type, results, created, lastModified) VALUES
+(1, 2201, 1, '2018-07-10', 107, 4.3, '2018-07-10 14:29:00', '2018-07-10 14:29:00');
+
+INSERT INTO RequisitionQc(qcId, requisitionId, creator, date, type, results, created, lastModified) VALUES
+(1, 2201, 1, '2021-07-13', 111, 1.2, '2021-07-13 14:29:00', '2021-07-13 14:29:00');
+
+INSERT INTO LibraryAliquotQc(aliquotId, creator, date, type, results, created, lastModified) VALUES
+(1, 1, '2018-07-10', 107, 4.3, '2018-07-10 14:29:00', '2018-07-10 14:29:00');
 
 INSERT INTO Workset_Sample(worksetId, sampleId) VALUES
 (1, 100001),
 (1, 100002),
-(1, 100003);
+(1, 100003),
+(2, 100004);
 
 INSERT INTO Workset_Library(worksetId, libraryId) VALUES
 (1, 100001),
@@ -1279,6 +1308,10 @@ INSERT INTO Workset_Library(worksetId, libraryId) VALUES
 INSERT INTO Workset_LibraryAliquot(worksetId, aliquotId) VALUES
 (1, 120001),
 (1, 120002);
+
+INSERT INTO Workset_Pool(worksetId, poolId, addedTime) VALUES
+(1, 120001, NOW()),
+(1, 120002, NOW());
 
 INSERT INTO StorageLabel(labelId, label) VALUES
 (1, 'Label One'),
@@ -1303,7 +1336,13 @@ INSERT INTO StorageLocation_ServiceRecord(recordId, locationId) VALUES
 (153, 3);
 
 INSERT INTO LibraryTemplate(libraryTemplateId, alias, defaultVolume, platformType, libraryTypeId, librarySelectionTypeId, libraryStrategyTypeId, kitDescriptorId, indexFamilyId, volumeUnits) VALUES
-(1, 'TestLibTemp', 12.34, 'ILLUMINA', 1, 3, 5, 1, 1, 'MICROLITRES');
+(1, 'TestLibTemp', 12.34, 'ILLUMINA', 1, 3, 5, 1, 1, 'MICROLITRES'),
+(2, 'TestLibTempTwo', 12.34, 'ILLUMINA', 1, 3, 5, 1, 1, 'MICROLITRES'),
+(3, 'to_delete', 12.34, 'ILLUMINA', 1, 3, 5, 1, 1, 'MICROLITRES');
+
+INSERT INTO LibraryTemplate_Project (libraryTemplateId, projectId) VALUES
+(1,1),
+(2,1);
 
 INSERT INTO LibraryTemplate_Index1(libraryTemplateId, `position`, indexId) VALUES
 (1, 'A01', 1),

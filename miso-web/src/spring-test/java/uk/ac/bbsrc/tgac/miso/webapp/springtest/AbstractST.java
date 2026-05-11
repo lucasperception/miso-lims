@@ -8,12 +8,9 @@ import java.io.IOException;
 
 import javax.sql.DataSource;
 
-import static org.hamcrest.Matchers.*;
-
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,28 +25,18 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.util.LinkedMultiValueMap;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.HashMap;
 import java.util.Map;
 
-import org.springframework.test.context.TestExecutionListeners.MergeMode;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.util.MultiValueMap;
 import org.hibernate.Session;
-import org.hibernate.engine.jdbc.env.spi.IdentifierCaseStrategy;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import jakarta.servlet.ServletContextEvent;
-import jakarta.transaction.Transactional;
 import uk.ac.bbsrc.tgac.miso.core.data.Identifiable;
 import uk.ac.bbsrc.tgac.miso.core.data.spreadsheet.SpreadSheetFormat;
-import uk.ac.bbsrc.tgac.miso.core.security.AuthorizationManager;
-import uk.ac.bbsrc.tgac.miso.core.service.UserService;
 import uk.ac.bbsrc.tgac.miso.dto.SpreadsheetRequest;
 
 import static org.junit.Assert.*;
@@ -57,7 +44,6 @@ import java.util.List;
 import java.util.Arrays;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import java.util.ArrayList;
 
@@ -245,7 +231,7 @@ public abstract class AbstractST {
    * @param getId The getId method for the target entity
    * @return List of updated entities
    */
-  protected <T, D> List<T> baseTestBulkUpdateAsync(String controllerBase, Class<T> updateType, List<D> dtos,
+  protected <T extends Identifiable, D> List<T> baseTestBulkUpdateAsync(String controllerBase, Class<T> updateType, List<D> dtos,
       Function<D, Long> getId)
       throws Exception {
     String response = pollingResponserHelper("put", dtos, controllerBase);
@@ -263,6 +249,7 @@ public abstract class AbstractST {
     for (Long id : ids) {
       T obj = currentSession().get(updateType, id);
       assertNotNull(obj);
+      assertEquals(id.longValue(), obj.getId());
       objects.add(obj);
     }
     return objects;
@@ -660,7 +647,7 @@ public abstract class AbstractST {
       String s = rawRows[i].replaceAll("\\r", "");
       s = s.replaceAll("\\n", "");
       s = s.replaceAll("\"", "");
-      records[i] = s.split(",");
+      records[i] = s.split(",", -1);
     }
     checkArray(records[0], headers);
     for (int i = 0; i < rows.size(); i++) {

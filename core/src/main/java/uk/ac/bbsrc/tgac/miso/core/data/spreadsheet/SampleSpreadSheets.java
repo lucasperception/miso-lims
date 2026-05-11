@@ -20,6 +20,7 @@ import uk.ac.bbsrc.tgac.miso.core.data.SampleTissue;
 import uk.ac.bbsrc.tgac.miso.core.data.SampleTissuePiece;
 import uk.ac.bbsrc.tgac.miso.core.data.SampleTissueProcessing;
 import uk.ac.bbsrc.tgac.miso.core.data.TissueType;
+import uk.ac.bbsrc.tgac.miso.core.data.impl.Requisition;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.view.transfer.ListTransferView;
 import uk.ac.bbsrc.tgac.miso.core.data.qc.QC;
 import uk.ac.bbsrc.tgac.miso.core.util.BoxUtils;
@@ -31,6 +32,8 @@ public enum SampleSpreadSheets implements Spreadsheet<Sample> {
           SampleTissueProcessing.CATEGORY_NAME, SampleStock.CATEGORY_NAME, SampleAliquot.CATEGORY_NAME), //
       Column.forString("Name", Sample::getName), //
       Column.forString("Alias", Sample::getAlias), //
+      Column.forString("Requisition", false, SampleSpreadSheets::getEffectiveRequisition), //
+      Column.forString("Assay", false, SampleSpreadSheets::getEffectiveAssay), //
       Column.forString("Tissue Origin", true,
           detailedSample(SampleTissue.class, st -> st.getTissueOrigin().getAlias(), "")), //
       Column.forString("Type", true, dnaOrRna()), //
@@ -111,8 +114,11 @@ public enum SampleSpreadSheets implements Spreadsheet<Sample> {
       Column.forString("Group ID", true, effectiveGroupIdProperty(GroupIdentifiable::getGroupId)), //
       Column.forString("Group Description", true, effectiveGroupIdProperty(GroupIdentifiable::getGroupDescription)), //
       Column.forString("Barcode", Sample::getIdentificationBarcode), //
-      Column.forString("Created By", s -> s.getCreator().getLoginName()), //
-      Column.forDate("Created Date", Sample::getCreationTime)), //
+      Column.forString("Created By", true,
+          detailedSample(DetailedSample.class, s -> s.getCreationDate() == null ? null : s.getCreator().getLoginName(),
+              null)), //
+      Column.forLocalDate("Created Date", true, detailedSample(DetailedSample.class,
+          s -> s.getCreationDate() == null ? null : s.getCreationDate(), null))), //
   PROCESSING_AND_EXTRACTION("Processing & Extraction", //
       Arrays.asList(SampleTissue.CATEGORY_NAME, SampleTissueProcessing.CATEGORY_NAME, SampleStock.CATEGORY_NAME,
           SampleAliquot.CATEGORY_NAME), //
@@ -261,7 +267,7 @@ public enum SampleSpreadSheets implements Spreadsheet<Sample> {
       Column.forString("Type", true, dnaOrRna()), //
       Column.forBigDecimal("Total (ng)", getInitialYield()), //
       Column.forString("Group ID", true, effectiveGroupIdProperty(GroupIdentifiable::getGroupId)),
-      Column.forString("Requisition", false, effectiveRequisition()));
+      Column.forString("Requisition", false, SampleSpreadSheets::getEffectiveRequisition));
 
 
   private static Function<Sample, String> custody() {
@@ -280,20 +286,22 @@ public enum SampleSpreadSheets implements Spreadsheet<Sample> {
     };
   }
 
-  private static Function<Sample, String> effectiveRequisition() {
-    return sam -> {
-      if (sam.getRequisition() != null) {
-        return sam.getRequisition().getAlias();
-      }
-      if (LimsUtils.isDetailedSample(sam)) {
-        for (DetailedSample detailed = (DetailedSample) sam; detailed != null; detailed = detailed.getParent()) {
-          if (detailed.getRequisition() != null) {
-            return detailed.getRequisition().getAlias();
-          }
-        }
-      }
+  private static String getEffectiveRequisition(Sample sample) {
+    Requisition requisition = LimsUtils.getEffectiveRequisition(sample);
+    if (requisition == null) {
       return null;
-    };
+    }
+    return requisition.getAlias();
+  }
+
+  private static String getEffectiveAssay(Sample sample) {
+    Requisition requisition = LimsUtils.getEffectiveRequisition(sample);
+    if (requisition == null || requisition.getAssays() == null || requisition.getAssays().isEmpty()) {
+      return null;
+    }
+    return requisition.getAssays().stream()
+        .map(assay -> assay.getAlias() + " v" + assay.getVersion())
+        .collect(Collectors.joining("; "));
   }
 
   private static Function<Sample, String> mohSampleType() {
