@@ -83,4 +83,9 @@ public class DefaultContactService extends AbstractSaveService<Contact> implemen
     return contactStore.list();
   }
 
+  @Override
+  public Contact getByEmail(String email) throws IOException {
+    return contactStore.getByEmail(email);
+  }
+
 }

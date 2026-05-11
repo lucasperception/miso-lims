@@ -9,4 +9,5 @@ public interface ContactService extends DeleterService<Contact>, BulkSaveService
 
   public List<Contact> listBySearch(String search) throws IOException;
 
+  public Contact getByEmail(String email) throws IOException;
 }
