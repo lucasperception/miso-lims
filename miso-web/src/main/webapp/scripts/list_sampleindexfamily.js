@@ -41,6 +41,34 @@ ListTarget.sampleindexfamily = {
         1,
         true
       ),
+      {
+        sTitle: "Platform",
+        mData: "platformType",
+        include: true,
+        iSortPriority: 0,
+        mRender: ListUtils.render.platformType,
+      },
+      {
+        sTitle: "Multi-Sequence Indices",
+        mData: "fakeSequence",
+        include: true,
+        iSortPriority: 0,
+        mRender: ListUtils.render.booleanChecks,
+      },
+      {
+        sTitle: "Unique Dual Indices",
+        mData: "uniqueDualIndex",
+        include: true,
+        iSortPriority: 0,
+        mRender: ListUtils.render.booleanChecks,
+      },
+      {
+        sTitle: "Archived",
+        mData: "archived",
+        include: true,
+        iSortPriority: 0,
+        mRender: ListUtils.render.archived,
+      },
     ];
   },
 };

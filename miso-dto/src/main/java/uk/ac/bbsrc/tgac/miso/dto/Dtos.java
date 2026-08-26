@@ -903,6 +903,7 @@ public class Dtos {
     setInteger(to::setSlidesConsumed, from.getSlidesConsumed(), true);
     setLong(to::setReferenceSlideId, from.getReferenceSlideId(), true);
     setObject(to::setIndex, SampleIndex::new, from.getIndexId());
+    setObject(to::setIndex2, SampleIndex::new, from.getIndex2Id());
     return to;
   }
 

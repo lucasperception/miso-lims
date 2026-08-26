@@ -45,5 +45,6 @@ public interface SampleStock extends DetailedSample {
   SampleIndex getIndex();
 
   void setIndex(SampleIndex index);
+  void setIndex2(SampleIndex index);
 
 }
