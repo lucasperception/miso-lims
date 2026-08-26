@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 
+import uk.ac.bbsrc.tgac.miso.core.data.LibraryIndexFamily;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.SampleIndex;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.SampleIndexFamily;
 
@@ -11,7 +12,8 @@ public interface SampleIndexDao extends SaveDao<SampleIndex> {
 
   SampleIndex getByName(String name) throws IOException;
 
-  SampleIndex getByFamilyAndName(SampleIndexFamily family, String name) throws IOException;
+  SampleIndex getByFamilyPositionAndName(SampleIndexFamily family, int position, String name)
+          throws IOException;
 
   List<SampleIndex> listByIdList(Collection<Long> ids) throws IOException;
 

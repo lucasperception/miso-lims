@@ -4,14 +4,21 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
+
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import uk.ac.bbsrc.tgac.miso.core.data.Deletable;
+import uk.ac.bbsrc.tgac.miso.core.data.type.PlatformType;
 
 @Entity
 public class SampleIndexFamily implements Deletable, Serializable {
@@ -24,6 +31,46 @@ public class SampleIndexFamily implements Deletable, Serializable {
   private long indexFamilyId = UNSAVED_ID;
 
   private String name;
+
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false)
+  private PlatformType platformType;
+
+  private boolean fakeSequence;
+  private boolean uniqueDualIndex;
+  private Boolean archived;
+
+  public Boolean getArchived() {
+    return archived;
+  }
+
+  public PlatformType getPlatformType() {
+    return platformType;
+  }
+
+  public boolean hasFakeSequence() {
+    return fakeSequence;
+  }
+
+  public void setArchived(Boolean archived) {
+    this.archived = archived;
+  }
+
+  public void setPlatformType(PlatformType platform) {
+    this.platformType = platform;
+  }
+
+  public void setFake(boolean fake) {
+    this.fakeSequence = fake;
+  }
+
+  public void setUniqueDualIndex(boolean uniqueDualIndex) {
+    this.uniqueDualIndex = uniqueDualIndex;
+  }
+
+  public boolean isUniqueDualIndex() {
+    return uniqueDualIndex;
+  }
 
   @OneToMany(targetEntity = SampleIndex.class, mappedBy = "family", cascade = CascadeType.REMOVE)
   @OrderBy("name")
@@ -73,4 +120,27 @@ public class SampleIndexFamily implements Deletable, Serializable {
     return getName();
   }
 
+  public int hashCode() {
+    return new HashCodeBuilder(11, 41)
+            .append(archived)
+            .append(name)
+            .append(platformType)
+            .toHashCode();
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj)
+      return true;
+    if (obj == null)
+      return false;
+    if (getClass() != obj.getClass())
+      return false;
+    SampleIndexFamily other = (SampleIndexFamily) obj;
+    return new EqualsBuilder()
+            .append(archived, other.archived)
+            .append(name, other.name)
+            .append(platformType, other.platformType)
+            .isEquals();
+  }
 }

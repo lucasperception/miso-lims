@@ -1101,12 +1101,36 @@ BulkTarget.sample = (function ($) {
               changes.value = null;
             }
             api.updateField(rowIndex, "indexId", changes);
+            changes.required = false;
+            api.updateField(rowIndex, "index2Id", changes);
           },
         },
         {
           title: "Index",
           type: "dropdown",
           data: "indexId",
+          include:
+            ["Tissue Processing", "Stock"].includes(targetCategory) &&
+            Constants.sampleIndexFamilies &&
+            Constants.sampleIndexFamilies.length,
+          source: function (sample, api) {
+            if (!sample.indexFamilyId) {
+              return [];
+            }
+            var indexFamily = Utils.array.findUniqueOrThrow(
+              Utils.array.idPredicate(sample.indexFamilyId),
+              Constants.sampleIndexFamilies
+            );
+            return indexFamily.indices;
+          },
+          sortSource: Utils.sorting.standardSort("name"),
+          getItemLabel: Utils.array.getName,
+          getItemValue: Utils.array.getId,
+        },
+        {
+          title: "Index2",
+          type: "dropdown",
+          data: "index2Id",
           include:
             ["Tissue Processing", "Stock"].includes(targetCategory) &&
             Constants.sampleIndexFamilies &&
