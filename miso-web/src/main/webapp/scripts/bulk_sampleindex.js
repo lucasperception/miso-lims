@@ -35,11 +35,59 @@ BulkTarget.sampleindex = (function ($) {
           disabled: true,
         },
         {
+          title: "Position",
+          data: "position",
+          type: "dropdown",
+          source: [1, 2],
+          required: true,
+        },
+        {
           title: "Name",
           data: "name",
           type: "text",
           maxLength: 24,
           required: true,
+        },
+        {
+          title: "Demultiplexing Name",
+          data: "sequence",
+          type: "text",
+          maxLength: 24,
+          required: true,
+          include: !!config.indexFamily.fakeSequence,
+        },
+        {
+          title: "Sequence",
+          data: "sequence",
+          type: "text",
+          maxLength: 120,
+          required: false,
+          regex: "^[ACGT]+$",
+          description: "Can only include the characters [A, C, G, T]",
+          include: !config.indexFamily.fakeSequence,
+        },
+        {
+          title: "Sequences",
+          data: "realSequences",
+          getData: function (object, api) {
+            return object.realSequences ? object.realSequences.join(", ") : "";
+          },
+          setData: function (object, value, rowIndex, api) {
+            object.realSequences = value
+              .split(",")
+              .map(function (value) {
+                return value.trim();
+              })
+              .filter(function (value) {
+                return value && value.length;
+              });
+          },
+          type: "text",
+          required: true,
+          regex: "^\\s*([ACGT]+\\s*,\\s*)*[ACGT]+\\s*$",
+          description:
+            'Values can only include the characters [A, C, G, T] and should be comma-separated. e.g. "ACACAC, GTGTGT"',
+          include: !!config.indexFamily.fakeSequence,
         },
       ];
     },

@@ -54,11 +54,47 @@ ListTarget.sampleindex = {
   createColumns: function (config, projectId) {
     return [
       {
+        sTitle: "Platform",
+        include: !config.platformType && !config.indexFamilyId,
+        iSortPriority: 3,
+        mData: "family.platformType",
+        mRender: ListUtils.render.platformType,
+      },
+      {
+        sTitle: "Family",
+        include: !config.indexFamilyId,
+        iSortPriority: 2,
+        mData: "family.name",
+      },
+      {
         sTitle: "Index Name",
         include: true,
         iSortPriority: 1,
         bSortDirection: false,
         mData: "name",
+      },
+      {
+        sTitle: "Sequence(s)",
+        include: true,
+        iSortPriority: 0,
+        bSortable: false,
+        mData: "sequence",
+        mRender: function (data, type, full) {
+          console.log('yay, fake sequences');
+          console.log(full);
+          if (type === "display" && full.family.fakeSequence) {
+            console.log('yay, Im in the if');
+            return full.realSequences.join(", ");
+          } else {
+            return data;
+          }
+        },
+      },
+      {
+        sTitle: "Position",
+        include: true,
+        iSortPriority: 1,
+        mData: "position",
       },
     ];
   },

@@ -768,6 +768,8 @@ FormTarget.sample = (function ($) {
             changes.source = [];
           }
           form.updateField("indexId", changes);
+          changes.required = false;
+          form.updateField("index2Id", changes);
         },
       },
       {
@@ -780,6 +782,21 @@ FormTarget.sample = (function ($) {
               Utils.array.idPredicate(sample.indexFamilyId),
               Constants.sampleIndexFamilies
             ).indices
+          : [],
+        sortSource: Utils.sorting.standardSort("name"),
+        getItemLabel: Utils.array.getName,
+        getItemValue: Utils.array.getId,
+      },
+      {
+        title: "Index2",
+        data: "index2Id",
+        type: "dropdown",
+        include: Constants.sampleIndexFamilies && Constants.sampleIndexFamilies.length,
+        source: sample.indexFamilyId
+          ? Utils.array.findUniqueOrThrow(
+            Utils.array.idPredicate(sample.indexFamilyId),
+            Constants.sampleIndexFamilies
+          ).indices
           : [],
         sortSource: Utils.sorting.standardSort("name"),
         getItemLabel: Utils.array.getName,
