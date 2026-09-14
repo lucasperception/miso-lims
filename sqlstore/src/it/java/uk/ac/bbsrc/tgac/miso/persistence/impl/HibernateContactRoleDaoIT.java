@@ -2,9 +2,9 @@ package uk.ac.bbsrc.tgac.miso.persistence.impl;
 
 import java.util.Arrays;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.google.common.annotations.VisibleForTesting;
 
@@ -46,9 +46,15 @@ public class HibernateContactRoleDaoIT extends AbstractHibernateSaveDaoTest<Cont
   }
 
   @Test
-  public void testGetUsage() throws Exception {
-    ContactRole contactRole = (ContactRole) currentSession().get(ContactRole.class, 2L);
-    assertEquals(1L, getTestSubject().getUsage(contactRole));
+  public void testGetProjectUsage() throws Exception {
+    ContactRole contactRole = (ContactRole) currentSession().find(ContactRole.class, 2L);
+    assertEquals(1L, getTestSubject().getProjectUsage(contactRole));
+  }
+
+  @Test
+  public void testGetRequisitionUsage() throws Exception {
+    ContactRole contactRole = (ContactRole) currentSession().find(ContactRole.class, 2L);
+    assertEquals(0L, getTestSubject().getRequisitionUsage(contactRole));
   }
 
   @Test

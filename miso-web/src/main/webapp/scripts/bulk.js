@@ -115,13 +115,14 @@ BulkUtils = (function ($) {
    *   getValueObject: function(row, dataProperty): get the object represented by the current cell
    *       value (for dropdown columns)
    *   getSourceData: function(rowIndex, dataProperty); get the backing data for a dropdown field
-   *   updateField: function(rowIndex, dataProperty, options). options may include
+   *   updateField: function(rowIndex, dataProperty, options, bulkRender). options may include
    *       * 'value' (string)
    *       * 'source' (array of objects)
    *       * 'required' (boolean)
    *       * 'disabled' (boolean)
    *       * 'formatter' (string)
    *       * 'type' (string; only 'decimal' and 'dropdown' supported)
+   *       bulkRender=true reduces render calls when updateData cannot be used.
    *   updateData: function(changes); update fields in bulk. Use this rather than multiple
    *       updateField calls to improve performance. changes is an array of arrays where the inner
    *       arrays have three elements - rowIndex, dataProperty, and newValue
@@ -185,6 +186,17 @@ BulkUtils = (function ($) {
       return td;
     },
   };
+
+  var bulkRenderQueue = [];
+  var bulkRenderTimer = null;
+
+  function setBulkRenderTimer(hot) {
+    clearTimeout(bulkRenderTimer);
+    bulkRenderTimer = setTimeout(function () {
+      var changes = bulkRenderQueue.splice(0);
+      hot.setDataAtCell(changes);
+    }, 50);
+  }
 
   return {
     makeTable: function (target, config, data) {
@@ -262,6 +274,29 @@ BulkUtils = (function ($) {
       });
     },
 
+    applyDefaultDetailedQcStatus: function (data, config) {
+      if (config && config.pageMode === "edit") {
+        return;
+      }
+      if (Constants.showQcStatus !== false || !Constants.defaultDetailedQcStatus) {
+        return;
+      }
+      var status = Constants.detailedQcStatuses.find(function (s) {
+        return s.description === Constants.defaultDetailedQcStatus;
+      });
+      if (!status) {
+        return;
+      }
+      data.forEach(function (item) {
+        if (!item.detailedQcStatusId) {
+          item.detailedQcStatusId = status.id;
+        }
+        if (item.sample && !item.sample.detailedQcStatusId) {
+          item.sample.detailedQcStatusId = status.id;
+        }
+      });
+    },
+
     columns: {
       name: {
         title: "Name",
@@ -300,6 +335,7 @@ BulkUtils = (function ($) {
             title: "Date of Receipt",
             type: "date",
             data: "receivedDate",
+            include: Constants.showReceipt !== false,
             includeSaved: false,
             getData: function (object) {
               return object.receivedTime ? object.receivedTime.split(" ")[0] : null;
@@ -349,6 +385,7 @@ BulkUtils = (function ($) {
             title: "Time of Receipt",
             type: "time",
             data: "receivedTime",
+            include: Constants.showReceipt !== false,
             includeSaved: false,
             getData: function (object) {
               if (!object.receivedTime) {
@@ -367,6 +404,7 @@ BulkUtils = (function ($) {
             title: "Received From",
             type: "dropdown",
             data: "senderLabId",
+            include: Constants.showReceipt !== false,
             includeSaved: false,
             source: Constants.labs.filter(function (lab) {
               return !lab.archived;
@@ -379,6 +417,7 @@ BulkUtils = (function ($) {
             title: "Received By",
             type: "dropdown",
             data: "recipientGroupId",
+            include: Constants.showReceipt !== false,
             includeSaved: false,
             source: config.recipientGroups,
             getItemLabel: Utils.array.getName,
@@ -389,6 +428,7 @@ BulkUtils = (function ($) {
             title: "Receipt Confirmed",
             type: "dropdown",
             data: "received",
+            include: Constants.showReceipt !== false && Constants.showReceiptQc !== false,
             includeSaved: false,
             source: [
               {
@@ -416,6 +456,7 @@ BulkUtils = (function ($) {
             title: "Receipt QC Passed",
             type: "dropdown",
             data: "receiptQcPassed",
+            include: Constants.showReceipt !== false && Constants.showReceiptQc !== false,
             includeSaved: false,
             source: [
               {
@@ -448,6 +489,7 @@ BulkUtils = (function ($) {
             title: "Receipt QC Note",
             type: "text",
             data: "receiptQcNote",
+            include: Constants.showReceipt !== false && Constants.showReceiptQc !== false,
             includeSaved: false,
           },
         ];
@@ -464,7 +506,7 @@ BulkUtils = (function ($) {
         title: "Matrix Barcode",
         type: "text",
         data: "identificationBarcode",
-        include: !Constants.automaticBarcodes,
+        include: !Constants.automaticBarcodes && Constants.showMatrixBarcode !== false,
         maxLength: 255,
       },
 
@@ -479,6 +521,7 @@ BulkUtils = (function ($) {
             title: "Box Search",
             type: "text",
             data: "boxSearch",
+            include: Constants.showBoxFields !== false,
             includeSaved: false,
             omit: true,
             sortable: false,
@@ -548,6 +591,7 @@ BulkUtils = (function ($) {
             title: "Box Alias",
             type: "dropdown",
             data: "box",
+            include: Constants.showBoxFields !== false,
             source: function (data, api) {
               if (data.box) {
                 var cache = api.getCache("boxes");
@@ -585,6 +629,7 @@ BulkUtils = (function ($) {
             title: "Position",
             type: "dropdown",
             data: "boxPosition",
+            include: Constants.showBoxFields !== false,
             // source is initialized in box onChange
             source: [],
             customSorting: [
@@ -606,6 +651,7 @@ BulkUtils = (function ($) {
             title: "Discarded",
             type: "dropdown",
             data: "discarded",
+            include: Constants.showDiscarded !== false,
             required: true,
             source: [
               {
@@ -764,6 +810,7 @@ BulkUtils = (function ($) {
           title: "Parent ng Used",
           type: "decimal",
           data: "ngUsed",
+          include: Constants.showParentUsed !== false,
           precision: 16,
           scale: 10,
           min: 0,
@@ -772,6 +819,7 @@ BulkUtils = (function ($) {
           title: "Parent Vol. Used",
           type: "decimal",
           data: "volumeUsed",
+          include: Constants.showParentUsed !== false,
           precision: 16,
           scale: 10,
           min: 0,
@@ -787,6 +835,7 @@ BulkUtils = (function ($) {
             title: "QC Status",
             type: "dropdown",
             data: "detailedQcStatusId",
+            include: Constants.showQcStatus !== false,
             getData: function (object, limitedApi) {
               if (!object.detailedQcStatusId) {
                 return pageMode === "edit" ? "Not Ready" : null;
@@ -799,6 +848,7 @@ BulkUtils = (function ($) {
               ).description;
             },
             required: true,
+            initial: Constants.defaultDetailedQcStatus || undefined,
             source: function (data, api) {
               return [
                 {
@@ -835,6 +885,7 @@ BulkUtils = (function ($) {
             title: "QC Note",
             type: "text",
             data: "detailedQcStatusNote",
+            include: Constants.showQcStatus !== false,
           },
         ];
       },
@@ -895,6 +946,7 @@ BulkUtils = (function ($) {
             title: "Requisition Alias",
             data: "requisitionAlias",
             type: "text",
+            include: Constants.showRequisition !== false,
             maxLength: 150,
             description:
               "Should usually match the ID of a requisition form stored in a separate system. Enter an alias to " +
@@ -957,6 +1009,7 @@ BulkUtils = (function ($) {
             title: "Requisition",
             type: "dropdown",
             data: "requisitionId",
+            include: Constants.showRequisition !== false,
             includeSaved: false,
             getItemLabel: Utils.array.getAlias,
             getItemValue: Utils.array.getId,
@@ -1014,6 +1067,7 @@ BulkUtils = (function ($) {
         return {
           title: "Assay",
           data: "requisitionAssayIds",
+          include: Constants.showRequisition !== false,
           getData: function (object, limitedApi) {
             if (!object.requisitionAssayIds || !object.requisitionAssayIds.length) {
               return null;
@@ -1778,6 +1832,7 @@ BulkUtils = (function ($) {
       }
     };
     Utils.saveWithProgressDialog(
+      "Resuming Requisitions",
       "POST",
       Urls.rest.requisitions.bulkResume,
       {
@@ -1918,6 +1973,7 @@ BulkUtils = (function ($) {
         (!tableSaved || !column.hasOwnProperty("includeSaved") || column.includeSaved)
       );
     });
+    applyRequiredOverrides(target, columns);
     var targetDescription = target.getDescription ? target.getDescription(config) : null;
     addQuickHelp(targetDescription, columns);
 
@@ -1967,15 +2023,16 @@ BulkUtils = (function ($) {
       extendApi(onChangeApi, hot, columns, config, data);
       var dataChanges = [];
       var storingChanges = true;
-      onChangeApi.updateField = function (rowIndex, dataProperty, changes) {
+      onChangeApi.updateField = function (rowIndex, dataProperty, changes, bulkRender) {
         if (storingChanges && changes.hasOwnProperty("value") && changes.value !== undefined) {
-          var colIndex = getColumnIndex(dataProperty, columns);
+          var colIndex = getColumnIndex(dataProperty, columns, isColumnHidden(dataProperty));
+          if (colIndex === null) return; // column hidden by config
           dataChanges.push([rowIndex, colIndex, changes.value]);
           // clone object before modification in-case same is being used for multiple fields
           changes = Object.assign({}, changes);
           changes.value = undefined;
         }
-        updateField(hot, columns, rowIndex, dataProperty, changes);
+        updateField(hot, columns, rowIndex, dataProperty, changes, bulkRender);
       };
       changes.forEach(function (change) {
         if (listeners[change[1]]) {
@@ -2405,6 +2462,72 @@ BulkUtils = (function ($) {
     return incrementedString;
   }
 
+  function isColumnHidden(dataProperty) {
+    // Strip "sample." prefix for library receipt page where sample columns are nested
+    var prop = dataProperty.replace(/^sample\./, "");
+    switch (prop) {
+      case "received":
+      case "receiptQcPassed":
+      case "receiptQcNote":
+        return Constants.showReceipt === false || Constants.showReceiptQc === false;
+      case "requisitionAlias":
+      case "requisitionId":
+      case "requisitionAssayIds":
+        return Constants.showRequisition === false;
+      case "detailedQcStatusId":
+      case "detailedQcStatusNote":
+        return Constants.showQcStatus === false;
+      case "identificationBarcode":
+        return Constants.showMatrixBarcode === false;
+      case "discarded":
+        return Constants.showDiscarded === false;
+      case "boxSearch":
+      case "box":
+      case "boxPosition":
+        return Constants.showBoxFields === false;
+      case "sampleBoxPositionLabel":
+      case "parentBoxPositionLabel":
+        return Constants.showParentLocation === false;
+      case "workstationId":
+        return Constants.showWorkstation === false;
+      case "thermalCyclerId":
+        return Constants.showThermalCycler === false;
+      case "kitLot":
+        return Constants.showKitLot === false;
+      case "spikeInId":
+      case "spikeInDilutionFactor":
+      case "spikeInVolume":
+        return Constants.showSpikeIn === false;
+      case "targetedSequencingId":
+        return Constants.showTargetedSequencing === false;
+      case "ngUsed":
+      case "volumeUsed":
+        return Constants.showParentUsed === false;
+      case "qcPassed":
+        return Constants.showQcStatus === false;
+      case "receivedDate":
+      case "receivedTime":
+      case "senderLabId":
+      case "recipientGroupId":
+        return Constants.showReceipt === false;
+      default:
+        return false;
+    }
+  }
+
+  function applyRequiredOverrides(target, columns) {
+    if (!target.targetKey) return;
+    var key =
+      "required" + target.targetKey.charAt(0).toUpperCase() + target.targetKey.slice(1) + "Fields";
+    var requiredFields = Constants[key];
+    if (!requiredFields || !requiredFields.length) return;
+    columns.forEach(function (column) {
+      if (requiredFields.indexOf(column.data) !== -1 && !isColumnHidden(column.data)) {
+        column.required = true;
+      }
+    });
+  }
+
   function getColumnIndex(dataProperty, columns, nullOk) {
     var colIndex = columns.findIndex(function (column) {
       return column.data === dataProperty;
@@ -2434,7 +2557,8 @@ BulkUtils = (function ($) {
 
     api.getValueObject = function (row, dataProperty) {
       // Note: currently only works for columns where the source is set individually per row
-      var colIndex = getColumnIndex(dataProperty, columns);
+      var colIndex = getColumnIndex(dataProperty, columns, isColumnHidden(dataProperty));
+      if (colIndex === null) return null; // column hidden by config
       var column = columns[colIndex];
       if (column.type !== "dropdown") {
         throw new Error("Cannot get value object for non-dropdown column: " + dataProperty);
@@ -2445,12 +2569,13 @@ BulkUtils = (function ($) {
     };
 
     api.getSourceData = function (row, dataProperty) {
-      var colIndex = getColumnIndex(dataProperty, columns);
+      var colIndex = getColumnIndex(dataProperty, columns, isColumnHidden(dataProperty));
+      if (colIndex === null) return null; // column hidden by config
       return hot.getCellMeta(row, colIndex).sourceData;
     };
 
-    api.updateField = function (rowIndex, dataProperty, options) {
-      updateField(hot, columns, rowIndex, dataProperty, options);
+    api.updateField = function (rowIndex, dataProperty, options, bulkRender) {
+      updateField(hot, columns, rowIndex, dataProperty, options, bulkRender);
     };
 
     api.updateData = function (changes) {
@@ -2473,8 +2598,9 @@ BulkUtils = (function ($) {
     };
   }
 
-  function updateField(hot, columns, rowIndex, dataProperty, options) {
-    var colIndex = getColumnIndex(dataProperty, columns);
+  function updateField(hot, columns, rowIndex, dataProperty, options, bulkRender) {
+    var colIndex = getColumnIndex(dataProperty, columns, isColumnHidden(dataProperty));
+    if (colIndex === null) return; // column hidden by config
     var column = columns[colIndex];
     var forceValidate = false;
 
@@ -2549,7 +2675,12 @@ BulkUtils = (function ($) {
     }
 
     if (options.hasOwnProperty("value") && options.value !== undefined) {
-      hot.setDataAtCell(rowIndex, colIndex, options.value);
+      if (bulkRender === true) {
+        bulkRenderQueue.push([rowIndex, colIndex, options.value]);
+        setBulkRenderTimer(hot);
+      } else {
+        hot.setDataAtCell(rowIndex, colIndex, options.value);
+      }
     } else if (forceValidate) {
       // Note: intended to be a private function, but it works and is more efficient than validating the entire row/column/table
       hot._validateCells(null, [rowIndex], [colIndex]);
@@ -2598,7 +2729,8 @@ BulkUtils = (function ($) {
 
       getValueObject: function (row, dataProperty) {
         // Note: currently only works for columns where the source is set individually per row
-        var colIndex = getColumnIndex(dataProperty, columns);
+        var colIndex = getColumnIndex(dataProperty, columns, isColumnHidden(dataProperty));
+        if (colIndex === null) return null; // column hidden by config
         var column = columns[colIndex];
         if (column.type !== "dropdown") {
           throw new Error("Cannot get value object for non-dropdown column: " + dataProperty);
@@ -2612,7 +2744,8 @@ BulkUtils = (function ($) {
       },
 
       getSourceData: function (rowIndex, dataProperty) {
-        var colIndex = getColumnIndex(dataProperty, columns);
+        var colIndex = getColumnIndex(dataProperty, columns, isColumnHidden(dataProperty));
+        if (colIndex === null) return null; // column hidden by config
         var cellMeta = cellMetas.find(function (meta) {
           return meta.row === rowIndex && meta.col === colIndex;
         });
@@ -2620,9 +2753,13 @@ BulkUtils = (function ($) {
       },
 
       updateField: function (rowIndex, dataProperty, options) {
-        var colIndex = getColumnIndex(dataProperty, columns, tableSaved);
+        var colIndex = getColumnIndex(
+          dataProperty,
+          columns,
+          tableSaved || isColumnHidden(dataProperty)
+        );
         if (colIndex === null) {
-          // Column not shown after save - ignore updates
+          // Column hidden by config or not shown after save - ignore updates
           return;
         }
         var column = columns[colIndex];

@@ -1,10 +1,13 @@
 package uk.ac.bbsrc.tgac.miso.webapp.service;
 
-import static uk.ac.bbsrc.tgac.miso.core.util.LimsUtils.isStringEmptyOrNull;
+import static uk.ac.bbsrc.tgac.miso.core.util.LimsUtils.*;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
@@ -23,6 +26,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -30,6 +37,7 @@ import org.springframework.web.client.RestTemplate;
 
 import com.eaglegenomics.simlims.core.User;
 
+import ca.on.oicr.gsi.runscanner.dto.Consumable;
 import ca.on.oicr.gsi.runscanner.dto.IlluminaNotificationDto;
 import ca.on.oicr.gsi.runscanner.dto.NotificationDto;
 import ca.on.oicr.gsi.runscanner.dto.OxfordNanoporeNotificationDto;
@@ -37,6 +45,7 @@ import ca.on.oicr.gsi.runscanner.dto.PacBioNotificationDto;
 import ca.on.oicr.gsi.runscanner.dto.PacBioNotificationDto.SMRTCellPosition;
 import ca.on.oicr.gsi.runscanner.dto.ProgressiveRequestDto;
 import ca.on.oicr.gsi.runscanner.dto.ProgressiveResponseDto;
+import ca.on.oicr.gsi.runscanner.dto.UltimaNotificationDto;
 import io.prometheus.metrics.core.metrics.Counter;
 import io.prometheus.metrics.core.metrics.Gauge;
 import uk.ac.bbsrc.tgac.miso.core.data.IlluminaChemistry;
@@ -147,8 +156,8 @@ public class RunScannerClient {
           setSequencer(notificationRun, dto.getSequencerName());
           setRunSequencingParameters(notificationRun, dto);
           setContainers(notificationRun, dto);
-
-          boolean isNew = runService.processNotification(notificationRun);
+          Map<String, String> consumableDataByType = getconsumableDataByType(dto);
+          boolean isNew = runService.processNotification(notificationRun, consumableDataByType);
           (isNew ? saveNew : saveUpdate).inc();
           saveCount.inc();
           badRuns.remove(dto.getRunAlias());
@@ -200,6 +209,32 @@ public class RunScannerClient {
     run.setSequencer(sequencer);
   }
 
+  private Map<String, String> getconsumableDataByType(NotificationDto dto) {
+    List<Consumable> consumables = getConsumables(dto);
+    if (consumables == null || consumables.isEmpty()) {
+      return Collections.emptyMap();
+    }
+
+    Map<String, String> lotNumbersByType = new HashMap<>();
+    for (Consumable consumable : consumables) {
+      if (isStringBlankOrNull(consumable.getType()) || isStringBlankOrNull(consumable.getLotNumber())) {
+        continue;
+      }
+      lotNumbersByType.put(consumable.getType(), consumable.getLotNumber());
+    }
+    return lotNumbersByType;
+  }
+
+  private List<Consumable> getConsumables(NotificationDto dto) {
+    if (dto instanceof IlluminaNotificationDto) {
+      return ((IlluminaNotificationDto) dto).getConsumables();
+    }
+    if (dto instanceof UltimaNotificationDto) {
+      return ((UltimaNotificationDto) dto).getConsumables();
+    }
+    return Collections.emptyList();
+  }
+
   private void setRunSequencingParameters(Run to, NotificationDto from) throws IOException {
     InstrumentModel model = to.getSequencer().getInstrumentModel();
     if (model.getPlatformType().hasContainerLevelParameters()) {
@@ -223,6 +258,9 @@ public class RunScannerClient {
           to.setSequencingParameters(matchingParams.get(0));
         }
         break;
+      case ULTIMA:
+        setUltimaSequencingParameters(to, (UltimaNotificationDto) from, instrumentParams);
+        break;
       default:
         throw new NotImplementedException("Platform not supported: %s".formatted(to.getPlatformType()));
     }
@@ -235,7 +273,7 @@ public class RunScannerClient {
       if (params.getChemistry() != chemistry) {
         return false;
       }
-      // If we are talking to an old Run Scanner that doens't provide read lengths, use the old logic
+      // If we are talking to an old Run Scanner that doesn't provide read lengths, use the old logic
       if (from.getReadLengths() == null) {
         // The read length must match the first read length
         if (Math.abs(params.getReadLength() - from.getReadLength()) < 2) {
@@ -264,6 +302,15 @@ public class RunScannerClient {
       // Otherwise, check the second read matches the right length
       return Math.abs(params.getReadLength2() - from.getReadLengths().get(1)) < 2;
     }).toList();
+    if (matchingParams.size() == 1) {
+      to.setSequencingParameters(matchingParams.get(0));
+    }
+  }
+
+  private void setUltimaSequencingParameters(Run to, UltimaNotificationDto from,
+      Stream<SequencingParameters> instrumentParams) {
+    List<SequencingParameters> matchingParams =
+        instrumentParams.filter(params -> params.getFlows() == from.getExpectedFlows()).toList();
     if (matchingParams.size() == 1) {
       to.setSequencingParameters(matchingParams.get(0));
     }
@@ -356,8 +403,17 @@ public class RunScannerClient {
       ProgressiveResponseDto response = null;
       do {
         try (AutoCloseable timer = serverReadTime.start(entry.getKey())) {
-          response = template.postForObject(entry.getKey() + "/runs/progressive", entry.getValue(),
-              ProgressiveResponseDto.class);
+          HttpHeaders headers = new HttpHeaders();
+          if (!runscannerAuthUsername.isBlank() && !runscannerAuthPassword.isBlank()) {
+            headers.setBasicAuth(runscannerAuthUsername, runscannerAuthPassword);
+          }
+
+          HttpEntity<ProgressiveRequestDto> request = new HttpEntity<>(entry.getValue(), headers);
+
+          ResponseEntity<ProgressiveResponseDto> result = template.exchange(entry.getKey() + "/runs/progressive",
+              HttpMethod.POST, request, ProgressiveResponseDto.class);
+          response = result.getBody();
+
           entry.getValue().update(response);
         } catch (Exception e) {
           log.error("Failed to get runs from " + entry.getKey(), e);
@@ -369,6 +425,12 @@ public class RunScannerClient {
       } while (response != null && response.isMoreAvailable());
     }
   }
+
+  @Value("${miso.runscanner.httpBasicAuthUsername:}")
+  private String runscannerAuthUsername;
+
+  @Value("${miso.runscanner.httpBasicAuthPassword:}")
+  private String runscannerAuthPassword;
 
   @Value("${miso.runscanner.urls:}")
   public void setUrls(String urls) {

@@ -1,6 +1,7 @@
 package uk.ac.bbsrc.tgac.miso.dto.run;
 
 import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -16,7 +17,8 @@ import uk.ac.bbsrc.tgac.miso.dto.ContainerDto;
     @JsonSubTypes.Type(value = OxfordNanoporeRunDto.class, name = "OxfordNanopore"),
     @JsonSubTypes.Type(value = PacBioRunDto.class, name = "PacBio"),
     @JsonSubTypes.Type(value = SolidRunDto.class, name = "Solid"),
-    @JsonSubTypes.Type(value = UltimaRunDto.class, name = "Ultima")})
+    @JsonSubTypes.Type(value = UltimaRunDto.class, name = "Ultima"),
+    @JsonSubTypes.Type(value = ElementRunDto.class, name = "Element")})
 @JsonTypeName(value = "Base")
 public class RunDto {
   private Long id;
@@ -48,6 +50,7 @@ public class RunDto {
   private String dataReviewDate;
   private String projectsLabel;
   private Long sopId;
+  private Map<Long, String> sopFieldValues;
   private String dataManglingPolicy;
 
   public Long getId() {
@@ -288,6 +291,14 @@ public class RunDto {
 
   public void setDataManglingPolicy(String dataManglingPolicy) {
     this.dataManglingPolicy = dataManglingPolicy;
+  }
+
+  public Map<Long, String> getSopFieldValues() {
+    return sopFieldValues;
+  }
+
+  public void setSopFieldValues(Map<Long, String> sopFieldValues) {
+    this.sopFieldValues = sopFieldValues;
   }
 
 }

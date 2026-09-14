@@ -1,16 +1,18 @@
 package uk.ac.bbsrc.tgac.miso.service.impl;
 
-import static org.junit.Assert.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -59,6 +61,8 @@ public class DefaultRunServiceTest {
   private static final String CONTAINER_MODEL_BARCODE = "CONTAINER_MODEL";
   private static final String CONTAINER_SERIAL_NO = "CONTAINER";
 
+  private AutoCloseable mockito;
+
   @Mock
   private UserService userService;
   @Mock
@@ -85,9 +89,9 @@ public class DefaultRunServiceTest {
   @InjectMocks
   private DefaultRunService sut;
 
-  @Before
+  @BeforeEach
   public void setup() throws IOException {
-    MockitoAnnotations.initMocks(this);
+    mockito = MockitoAnnotations.openMocks(this);
     User notificationUser = makeUser(2L, "notification");
     Mockito.when(authorizationManager.getCurrentUser()).thenReturn(notificationUser);
     Mockito.when(userService.getByLoginName("notification")).thenReturn(notificationUser);
@@ -113,10 +117,15 @@ public class DefaultRunServiceTest {
     Mockito.when(containerService.listByBarcode(CONTAINER_SERIAL_NO)).thenReturn(Arrays.asList(makeContainer()));
   }
 
+  @AfterEach
+  public void cleanUp() throws Exception {
+    mockito.close();
+  }
+
   @Test
   public void testProcessNotificationNoChange() throws Exception {
     Run notificationRun = makeRun();
-    assertFalse(sut.processNotification(notificationRun));
+    assertFalse(sut.processNotification(notificationRun, Collections.emptyMap()));
     Mockito.verify(runStore, Mockito.times(0)).create(Mockito.any());
     Mockito.verify(runStore, Mockito.times(0)).update(Mockito.any());
   }
@@ -126,7 +135,7 @@ public class DefaultRunServiceTest {
     Run notificationRun = makeRun();
     notificationRun.setHealth(HealthType.Running);
 
-    assertFalse(sut.processNotification(notificationRun));
+    assertFalse(sut.processNotification(notificationRun, Collections.emptyMap()));
     Mockito.verify(runStore, Mockito.times(0)).create(Mockito.any());
     Mockito.verify(runStore, Mockito.times(0)).update(Mockito.any());
   }

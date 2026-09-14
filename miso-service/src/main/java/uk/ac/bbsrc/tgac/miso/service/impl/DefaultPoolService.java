@@ -29,6 +29,7 @@ import com.eaglegenomics.simlims.core.Note;
 
 import uk.ac.bbsrc.tgac.miso.core.data.Box;
 import uk.ac.bbsrc.tgac.miso.core.data.Pool;
+import uk.ac.bbsrc.tgac.miso.core.data.type.RequiredPoolField;
 import uk.ac.bbsrc.tgac.miso.core.data.SequencingOrder;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.OrderLibraryAliquot;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.PoolOrder;
@@ -68,6 +69,9 @@ public class DefaultPoolService implements PoolService {
 
   @Value("${miso.autoGenerateIdentificationBarcodes}")
   private Boolean autoGenerateIdBarcodes;
+
+  @Value("${miso.required.pool:}")
+  private List<RequiredPoolField> requiredPoolFields;
 
   @Autowired
   private TransactionTemplate transactionTemplate;
@@ -325,6 +329,10 @@ public class DefaultPoolService implements PoolService {
     validateVolumeUnits(pool.getVolume(), pool.getVolumeUnits(), errors);
     validateBarcodeUniqueness(pool, beforeChange, barcodableReferenceService, errors);
     validateUnboxableFields(pool, errors);
+
+    for (RequiredPoolField field : requiredPoolFields) {
+      field.collectValidationErrors(pool, errors);
+    }
 
     if (strictPools && !pool.isMergeChild()) {
       validateIndices(pool, beforeChange, errors);

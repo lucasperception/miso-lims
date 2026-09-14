@@ -1,10 +1,10 @@
 package uk.ac.bbsrc.tgac.miso.persistence.impl;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.List;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.Lists;
 
@@ -60,6 +60,18 @@ public class HibernateContactDaoIT extends AbstractHibernateSaveDaoTest<Contact,
     assertEquals(2, results.size());
     assertNotNull(results.stream().filter(contact -> contact.getId() == 1L).findFirst().orElse(null));
     assertNotNull(results.stream().filter(contact -> contact.getId() == 2L).findFirst().orElse(null));
+  }
+
+  @Test
+  public void testGetProjectUsage() throws Exception {
+    Contact contact = (Contact) currentSession().find(Contact.class, 1L);
+    assertEquals(2L, getTestSubject().getProjectUsage(contact));
+  }
+
+  @Test
+  public void testGetRequisitionUsage() throws Exception {
+    Contact contact = (Contact) currentSession().find(Contact.class, 1L);
+    assertEquals(0L, getTestSubject().getRequisitionUsage(contact));
   }
 
 }

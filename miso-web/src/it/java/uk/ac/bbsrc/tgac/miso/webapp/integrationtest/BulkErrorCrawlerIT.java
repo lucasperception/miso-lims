@@ -1,6 +1,6 @@
 package uk.ac.bbsrc.tgac.miso.webapp.integrationtest;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.openqa.selenium.WebDriver;
 
 import com.google.common.collect.Lists;
@@ -186,6 +186,7 @@ public class BulkErrorCrawlerIT extends AbstractIT {
                 slugs.add("user/3");
                 slugs.add("probeset/new");
                 slugs.add("probeset/1");
+                slugs.add("sop/1");
 
                 // Bulk pages
                 slugs.add("assaytest/bulk/new?quantity=3");
@@ -243,6 +244,7 @@ public class BulkErrorCrawlerIT extends AbstractIT {
                 moreSlugs.add("qctype/new");
                 moreSlugs.add("libraryindexfamily/new");
                 moreSlugs.add("instrument/new");
+                moreSlugs.add("sop/new");
                 moreSlugs.add("admin/users");
                 moreSlugs.add("admin/groups");
                 moreSlugs.add("admin/user/new");
@@ -301,7 +303,8 @@ public class BulkErrorCrawlerIT extends AbstractIT {
                                                 (driver, baseUrl) -> BulkQCPage.getForAddLibraryAliquot(driver, baseUrl,
                                                                 Arrays.asList(304L, 305L), 1, 1))
                                 .put("qc/bulk/editFrom/LibraryAliquot",
-                                                (driver, baseUrl) -> BulkQCPage.getForEditLibraryAliquot(driver, baseUrl,
+                                                (driver, baseUrl) -> BulkQCPage.getForEditLibraryAliquot(driver,
+                                                                baseUrl,
                                                                 Arrays.asList(1L), 1))
                                 .build());
 
@@ -315,8 +318,6 @@ public class BulkErrorCrawlerIT extends AbstractIT {
                                 .put("containermodel/bulk/edit", unmodifiableMap("ids", "1,2"))
                                 .put("libraryindex/bulk/edit", unmodifiableMap("ids", "1,2,3,4"))
                                 .put("sampletype/bulk/edit", unmodifiableMap("ids", "1,2"))
-                                .put("sop/bulk/new", unmodifiableMap("quantity", "2"))
-                                .put("sop/bulk/edit", unmodifiableMap("ids", "1,2"))
                                 .put("stain/bulk/edit", unmodifiableMap("ids", "1,2"))
                                 .put("staincategory/bulk/edit", unmodifiableMap("ids", "1,2,3"))
                                 .put("studytype/bulk/edit", unmodifiableMap("ids", "2,4"))

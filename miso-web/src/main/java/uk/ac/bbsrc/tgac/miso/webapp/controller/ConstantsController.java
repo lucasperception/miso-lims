@@ -25,13 +25,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-
 import io.prometheus.metrics.core.metrics.Gauge;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import uk.ac.bbsrc.tgac.miso.Version;
 import uk.ac.bbsrc.tgac.miso.core.data.ConcentrationUnit;
 import uk.ac.bbsrc.tgac.miso.core.data.IlluminaChemistry;
@@ -60,6 +59,7 @@ import uk.ac.bbsrc.tgac.miso.core.data.type.IlluminaWorkflowType;
 import uk.ac.bbsrc.tgac.miso.core.data.type.InstrumentType;
 import uk.ac.bbsrc.tgac.miso.core.data.type.MetricCategory;
 import uk.ac.bbsrc.tgac.miso.core.data.type.PlatformType;
+import uk.ac.bbsrc.tgac.miso.core.data.type.RequiredPoolField;
 import uk.ac.bbsrc.tgac.miso.core.data.type.StrStatus;
 import uk.ac.bbsrc.tgac.miso.core.data.type.SubmissionActionType;
 import uk.ac.bbsrc.tgac.miso.core.data.type.ThresholdType;
@@ -113,9 +113,7 @@ import uk.ac.bbsrc.tgac.miso.core.service.WorksetStageService;
 import uk.ac.bbsrc.tgac.miso.core.service.printing.Backend;
 import uk.ac.bbsrc.tgac.miso.core.service.printing.Driver;
 import uk.ac.bbsrc.tgac.miso.core.service.printing.PrintableField;
-import uk.ac.bbsrc.tgac.miso.core.util.IlluminaExperiment;
 import uk.ac.bbsrc.tgac.miso.core.util.IndexChecker;
-import uk.ac.bbsrc.tgac.miso.core.util.SampleSheet;
 import uk.ac.bbsrc.tgac.miso.dto.AssayDto;
 import uk.ac.bbsrc.tgac.miso.dto.AssayTestDto;
 import uk.ac.bbsrc.tgac.miso.dto.Dtos;
@@ -229,7 +227,7 @@ public class ConstantsController {
   private ContactRoleService contactRoleService;
 
   @Autowired
-  private ObjectMapper mapper;
+  private JsonMapper mapper;
 
   @Value("${miso.autoGenerateIdentificationBarcodes}")
   private Boolean autoGenerateIdBarcodes;
@@ -240,10 +238,47 @@ public class ConstantsController {
   @Value("${miso.newOptionSopUrl:#{null}}")
   private String newOptionSopUrl;
 
+  @Value("${miso.display.bulk.receiptQc:true}")
+  private boolean showReceiptQc;
+  @Value("${miso.display.bulk.requisition:true}")
+  private boolean showRequisition;
+  @Value("${miso.display.bulk.qcStatus:true}")
+  private boolean showQcStatus;
+  @Value("${miso.display.bulk.matrixBarcode:true}")
+  private boolean showMatrixBarcode;
+  @Value("${miso.display.bulk.discarded:true}")
+  private boolean showDiscarded;
+  @Value("${miso.defaults.bulk.detailedQcStatus:#{null}}")
+  private String defaultDetailedQcStatus;
+  @Value("${miso.display.bulk.boxFields:true}")
+  private boolean showBoxFields;
+  @Value("${miso.display.bulk.parentLocation:true}")
+  private boolean showParentLocation;
+  @Value("${miso.display.bulk.workstation:true}")
+  private boolean showWorkstation;
+  @Value("${miso.display.bulk.thermalCycler:true}")
+  private boolean showThermalCycler;
+  @Value("${miso.display.bulk.kitLot:true}")
+  private boolean showKitLot;
+  @Value("${miso.display.bulk.spikeIn:true}")
+  private boolean showSpikeIn;
+  @Value("${miso.display.bulk.targetedSequencing:true}")
+  private boolean showTargetedSequencing;
+  @Value("${miso.display.bulk.parentUsed:true}")
+  private boolean showParentUsed;
+  @Value("${miso.display.bulk.receipt:true}")
+  private boolean showReceipt;
+  @Value("${miso.required.kitLot:true}")
+  private boolean requireKitLot;
+  @Value("${miso.defaults.bulk.poolQcPassed:#{null}}")
+  private Boolean defaultPoolQcPassed;
+  @Value("${miso.required.pool:}")
+  private List<RequiredPoolField> requiredPoolFields;
+
   @Resource
   private Boolean boxScannerEnabled;
 
-  private static void createMap(ObjectMapper mapper, ObjectNode node, String name, Map<String, List<String>> map) {
+  private static void createMap(JsonMapper mapper, ObjectNode node, String name, Map<String, List<String>> map) {
     ObjectNode mapNode = node.putObject(name);
     for (String key : map.keySet()) {
       addJsonArray(mapper, mapNode, key, map.get(key), Function.identity());
@@ -279,6 +314,28 @@ public class ConstantsController {
       node.put("automaticBarcodes", autoGenerateIdBarcodes);
       node.put("boxScannerEnabled", boxScannerEnabled);
       node.put("newOptionSopUrl", newOptionSopUrl);
+      node.put("showReceiptQc", showReceiptQc);
+      node.put("showRequisition", showRequisition);
+      node.put("showQcStatus", showQcStatus);
+      node.put("showMatrixBarcode", showMatrixBarcode);
+      node.put("showDiscarded", showDiscarded);
+      node.put("defaultDetailedQcStatus", defaultDetailedQcStatus);
+      node.put("showBoxFields", showBoxFields);
+      node.put("showParentLocation", showParentLocation);
+      node.put("showWorkstation", showWorkstation);
+      node.put("showThermalCycler", showThermalCycler);
+      node.put("showKitLot", showKitLot);
+      node.put("showSpikeIn", showSpikeIn);
+      node.put("showTargetedSequencing", showTargetedSequencing);
+      node.put("showParentUsed", showParentUsed);
+      node.put("showReceipt", showReceipt);
+      node.put("requireKitLot", requireKitLot);
+      node.put("defaultPoolQcPassed", defaultPoolQcPassed);
+
+      ArrayNode requiredPoolFieldsNode = node.putArray("requiredPoolFields");
+      for (RequiredPoolField field : requiredPoolFields) {
+        requiredPoolFieldsNode.add(field.getFieldName());
+      }
 
       final Collection<SampleValidRelationship> relationships = sampleValidRelationshipService.getAll();
 
@@ -334,7 +391,6 @@ public class ConstantsController {
       addJsonArray(mapper, node, "metricSubcategories", metricSubcategoryService.list(), MetricSubcategoryDto::from);
       addJsonArray(mapper, node, "assays", assayService.list(), AssayDto::from);
       addJsonArray(mapper, node, "assayTests", assayTestService.list(), AssayTestDto::from);
-      addJsonArray(mapper, node, "sampleSheetFormats", Arrays.asList(SampleSheet.values()), SampleSheet::name);
       addJsonArray(mapper, node, "contactRoles", contactRoleService.list(), Dtos::asDto);
 
       Collection<LibraryIndexFamily> indexFamilies = indexFamilyService.list();
@@ -396,7 +452,6 @@ public class ConstantsController {
       for (IlluminaChemistry chemistry : IlluminaChemistry.values()) {
         illuminaChemistry.add(chemistry.name());
       }
-      addIlluminaExperimentTypes(node);
       addHealthTypes(node);
       addIlluminaWorkflowTypes(node);
       addInstrumentTypes(node);
@@ -421,16 +476,6 @@ public class ConstantsController {
       constantsTimestamp.set(System.currentTimeMillis() / 1000.0);
     } catch (IOException e) {
       throw new RestException(e);
-    }
-  }
-
-  private static void addIlluminaExperimentTypes(ObjectNode node) {
-    ArrayNode illuminaExperimentTypes = node.putArray("illuminaExperimentTypes");
-    for (IlluminaExperiment experiment : IlluminaExperiment.values()) {
-      ObjectNode dto = illuminaExperimentTypes.addObject();
-      dto.put("name", experiment.name());
-      dto.put("description", experiment.getDescription());
-      dto.put("dragen", experiment.isDragen());
     }
   }
 
