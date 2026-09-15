@@ -81,6 +81,8 @@ SELECT s.alias NAME
         ,NULL batch_id
         ,s.requisitionId
         ,s.consentLevel
+     ,s.sopId sopId
+     ,sop.alias sopAlias
 FROM Sample s
 LEFT JOIN DetailedQcStatus qpd ON qpd.detailedQcStatusId = s.detailedQcStatusId 
 LEFT JOIN Sample parent ON parent.sampleId = s.parentId 
@@ -95,6 +97,7 @@ LEFT JOIN Lab la ON s.labId = la.labId
 LEFT JOIN Sample refSlide ON refSlide.sampleId = s.referenceSlideId
 LEFT JOIN Stain stain ON stain.stainId = s.stain
 LEFT JOIN ScientificName sn ON sn.scientificNameId = s.scientificNameId
+LEFT JOIN Sop sop ON sop.sopId = s.sopId
 LEFT JOIN BoxPosition pos ON pos.targetId = s.sampleId 
         AND pos.targetType = 'SAMPLE' 
 LEFT JOIN Box box ON box.boxId = pos.boxId 
@@ -224,7 +227,9 @@ SELECT l.alias NAME
         ) batch_id
         ,l.requisitionId
         ,NULL consentLevel
-FROM Library l 
+        ,l.sopId sopId
+        ,sop.alias sopAlias
+FROM Library l
 LEFT JOIN Sample parent ON parent.sampleId = l.sample_sampleId
 LEFT JOIN Project sp ON sp.projectId = parent.project_projectId
 LEFT JOIN DetailedQcStatus qpd ON qpd.detailedQcStatusId = l.detailedQcStatusId 
@@ -235,8 +240,9 @@ LEFT JOIN LibraryType lt ON lt.libraryTypeId = l.libraryType
 LEFT JOIN LibraryIndex bc1 ON bc1.indexId = l.index1Id
 LEFT JOIN LibraryIndexFamily fam ON fam.indexFamilyId = bc1.indexFamilyId
 LEFT JOIN LibraryIndex bc2 ON bc2.indexId = l.index2Id
-LEFT JOIN BoxPosition pos ON pos.targetId = l.libraryId 
-        AND pos.targetType = 'LIBRARY' 
+LEFT JOIN Sop sop ON sop.sopId = l.sopId
+LEFT JOIN BoxPosition pos ON pos.targetId = l.libraryId
+        AND pos.targetType = 'LIBRARY'
 LEFT JOIN Box box ON box.boxId = pos.boxId
 LEFT JOIN (
   SELECT xferl.libraryId, xferlab.alias institute, xfer.transferTime, xferlab.excludeFromPinery
@@ -359,6 +365,8 @@ SELECT d.alias name
         ,NULL batch_id
         ,NULL requisitionId
         ,NULL consentLevel
+        ,NULL sopId
+        ,NULL sopAlias
 FROM LibraryAliquot d 
 LEFT JOIN LibraryAliquot laParent ON laParent.aliquotId = d.parentAliquotId
 JOIN Library lib ON lib.libraryId = d.libraryId 
