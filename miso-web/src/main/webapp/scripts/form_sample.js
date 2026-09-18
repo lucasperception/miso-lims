@@ -758,18 +758,28 @@ FormTarget.sample = (function ($) {
             disabled: !newValue,
             required: !!newValue,
           };
+          var changes2 = {
+            disabled: !newValue,
+            required: false,
+          };
           if (newValue) {
             var family = Utils.array.findUniqueOrThrow(
               Utils.array.idPredicate(newValue),
               Constants.sampleIndexFamilies
             );
-            changes.source = family.indices;
+            changes.source = family.indices.filter(function (index) {
+              return index.position === 1;
+            });
+            changes2.source = family.indices.filter(function (index) {
+              return index.position === 2;
+            });
           } else {
             changes.source = [];
+            changes2.source = [];
           }
+          changes2.value = null;
           form.updateField("indexId", changes);
-          changes.required = false;
-          form.updateField("index2Id", changes);
+          form.updateField("index2Id", changes2);
         },
       },
       {
@@ -779,13 +789,43 @@ FormTarget.sample = (function ($) {
         include: Constants.sampleIndexFamilies && Constants.sampleIndexFamilies.length,
         source: sample.indexFamilyId
           ? Utils.array.findUniqueOrThrow(
-              Utils.array.idPredicate(sample.indexFamilyId),
-              Constants.sampleIndexFamilies
-            ).indices
+            Utils.array.idPredicate(sample.indexFamilyId),
+            Constants.sampleIndexFamilies
+          ).indices.filter(function (index) {
+            return index.position === 1;
+          })
           : [],
         sortSource: Utils.sorting.standardSort("name"),
         getItemLabel: Utils.array.getName,
         getItemValue: Utils.array.getId,
+        onChange: function (newValue, form) {
+          if (!newValue) {
+            return;
+          }
+          var indexFamilyId = form.getValue("indexFamilyId");
+          if (!indexFamilyId) {
+            return;
+          }
+          var indexFamily = Utils.array.findUniqueOrThrow(
+            Utils.array.idPredicate(indexFamilyId),
+            Constants.sampleIndexFamilies
+          );
+          if (indexFamily.uniqueDualIndex) {
+            var index1 = indexFamily.indices.find(function (index) {
+              return index.position === 1 && index.indexId === newValue;
+            });
+            if (index1) {
+              var index2 = indexFamily.indices.find(function (index) {
+                return index.position === 2 && index.name === index1.name;
+              });
+              if (index2) {
+                form.updateField("index2Id", {
+                  value: index2.indexId,
+                });
+              }
+            }
+          }
+        },
       },
       {
         title: "Index2",
@@ -796,7 +836,9 @@ FormTarget.sample = (function ($) {
           ? Utils.array.findUniqueOrThrow(
             Utils.array.idPredicate(sample.indexFamilyId),
             Constants.sampleIndexFamilies
-          ).indices
+          ).indices.filter(function (index) {
+            return index.position === 2;
+          })
           : [],
         sortSource: Utils.sorting.standardSort("name"),
         getItemLabel: Utils.array.getName,

@@ -64,18 +64,6 @@ FormTarget.libraryindexfamily = (function ($) {
         getItemValue: Utils.array.getName,
       },
       {
-        title: "Platform",
-        data: "platformType",
-        include: config.pageMode !== "create",
-        type: "read-only",
-        getDisplayValue: function (family) {
-          return Utils.array.findUniqueOrThrow(
-            Utils.array.namePredicate(family.platformType),
-            Constants.platformTypes
-          ).key;
-        },
-      },
-      {
         title: "Multi-Sequence Indices",
         data: "fakeSequence",
         type: "checkbox",
@@ -120,17 +108,6 @@ FormTarget.libraryindexfamily = (function ($) {
         title: "Name",
         data: "name",
         type: "read-only",
-      },
-      {
-        title: "Platform",
-        data: "platformType",
-        type: "read-only",
-        getDisplayValue: function (family) {
-          return Utils.array.findUniqueOrThrow(
-            Utils.array.namePredicate(family.platformType),
-            Constants.platformTypes
-          ).key;
-        },
       },
       {
         title: "Multi-Sequence Indices",

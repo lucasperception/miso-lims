@@ -73,6 +73,8 @@ BulkTarget.sample = (function ($) {
   var parentLocationsByRow = null;
   var metricCategories = [];
 
+  var allowUniqueDualIndexSelectionByRow = {};
+
   var showLabColumn = false;
   var editSubcategories = [];
 
@@ -382,8 +384,10 @@ BulkTarget.sample = (function ($) {
     },
     prepareData: function (data, config) {
       parentLocationsByRow = {};
+      allowUniqueDualIndexSelectionByRow = {};
       data.forEach(function (sample, index) {
         originalEffectiveGroupIdsByRow[index] = sample.effectiveGroupId;
+        allowUniqueDualIndexSelectionByRow[index] = false;
         if (Constants.isDetailedSample && sample.parentBoxPosition) {
           parentLocationsByRow[index] = sample.parentBoxPosition;
         }
@@ -1090,19 +1094,22 @@ BulkTarget.sample = (function ($) {
               Utils.array.namePredicate(newValue),
               Constants.sampleIndexFamilies
             );
-            var changes = {
-              required: !!family,
-              disabled: !family,
-            };
+            var index1Changes;
+            var index2Changes;
             if (family) {
-              changes.source = family.indices;
+              index1Changes = getIndexPositionChanges(family, 1);
+              index2Changes = getIndexPositionChanges(family, 2);
             } else {
-              changes.source = [];
-              changes.value = null;
+              index1Changes = {
+                source: [],
+                required: false,
+                disabled: true,
+                value: null,
+              };
+              index2Changes = index1Changes;
             }
-            api.updateField(rowIndex, "indexId", changes);
-            changes.required = false;
-            api.updateField(rowIndex, "index2Id", changes);
+            api.updateField(rowIndex, "indexId", index1Changes);
+            api.updateField(rowIndex, "index2Id", index2Changes);
           },
         },
         {
@@ -1121,14 +1128,45 @@ BulkTarget.sample = (function ($) {
               Utils.array.idPredicate(sample.indexFamilyId),
               Constants.sampleIndexFamilies
             );
-            return indexFamily.indices;
+            return indexFamily.indices.filter(function (index) {
+              return index.position === 1;
+            });
           },
           sortSource: Utils.sorting.standardSort("name"),
           getItemLabel: Utils.array.getName,
           getItemValue: Utils.array.getId,
+          onChange: function (rowIndex, newValue, api) {
+            if (!allowUniqueDualIndexSelectionByRow[rowIndex]) {
+              updateUdiSelection(rowIndex, api);
+              return;
+            }
+            if (!newValue) {
+              return;
+            }
+            var indexFamilyName = api.getValue(rowIndex, "indexFamilyId");
+            var indexFamily = Utils.array.findFirstOrNull(
+              Utils.array.namePredicate(indexFamilyName),
+              Constants.sampleIndexFamilies
+            );
+            if (indexFamily && indexFamily.uniqueDualIndex) {
+              var index1 = indexFamily.indices.find(function (index) {
+                return index.position === 1 && index.label === newValue;
+              });
+              if (index1) {
+                var index2 = indexFamily.indices.find(function (index) {
+                  return index.position === 2 && index.name === index1.name;
+                });
+                if (index2) {
+                  api.updateField(rowIndex, "index2Id", {
+                    value: index2.label,
+                  });
+                }
+              }
+            }
+          },
         },
         {
-          title: "Index2",
+          title: "Index 2",
           type: "dropdown",
           data: "index2Id",
           include:
@@ -1143,11 +1181,16 @@ BulkTarget.sample = (function ($) {
               Utils.array.idPredicate(sample.indexFamilyId),
               Constants.sampleIndexFamilies
             );
-            return indexFamily.indices;
+            return indexFamily.indices.filter(function (index) {
+              return index.position === 2;
+            });
           },
           sortSource: Utils.sorting.standardSort("name"),
           getItemLabel: Utils.array.getName,
           getItemValue: Utils.array.getId,
+          onChange: function (rowIndex, newValue, api) {
+            updateUdiSelection(rowIndex, api);
+          },
         },
         {
           title: "Probes",
@@ -1658,6 +1701,41 @@ BulkTarget.sample = (function ($) {
         );
       });
     });
+  }
+
+  function getIndexPositionChanges(family, position) {
+    var indices = family.indices.filter(function (index) {
+      return index.position === position;
+    });
+    var changes = {
+      source: indices,
+      disabled: !indices.length,
+      required: position === 1 && !!indices.length,
+    };
+    if (!indices.length) {
+      changes.value = null;
+    }
+    return changes;
+  }
+
+  function updateUdiSelection(rowIndex, api) {
+    var indexFamilyName = api.getValue(rowIndex, "indexFamilyId");
+    var indexFamily = Constants.sampleIndexFamilies.find(
+      Utils.array.namePredicate(indexFamilyName)
+    );
+    if (!indexFamily) {
+      allowUniqueDualIndexSelectionByRow[rowIndex] = true;
+      return;
+    }
+    var index1 = api.getValueObject(rowIndex, "indexId");
+    var index2 = api.getValueObject(rowIndex, "index2Id");
+    if (!index2) {
+      allowUniqueDualIndexSelectionByRow[rowIndex] = true;
+    } else if (!index1) {
+      allowUniqueDualIndexSelectionByRow[rowIndex] = false;
+    } else {
+      allowUniqueDualIndexSelectionByRow[rowIndex] = index1.name === index2.name;
+    }
   }
 
   function separateExternalNames(names) {

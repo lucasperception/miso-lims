@@ -52,34 +52,6 @@ FormTarget.sampleindexfamily = (function ($) {
         maxLength: 255,
       },
       {
-        title: "Platform",
-        data: "platformType",
-        type: "dropdown",
-        include: config.pageMode === "create",
-        required: true,
-        source: Constants.platformTypes,
-        getItemLabel: function (item) {
-          return item.key;
-        },
-        getItemValue: Utils.array.getName,
-      },
-      {
-        title: "Platform",
-        data: "platformType",
-        include: config.pageMode !== "create",
-        type: "read-only",
-        getDisplayValue: function (family) {
-          console.log("finding unique platform type");
-          console.log(Constants.platformTypes);
-          console.log(family.platformType);
-          console.log(family);
-          return Utils.array.findUniqueOrThrow(
-            Utils.array.namePredicate(family.platformType),
-            Constants.platformTypes
-          ).key;
-        },
-      },
-      {
         title: "Multi-Sequence Indices",
         data: "fakeSequence",
         type: "checkbox",
@@ -124,19 +96,6 @@ FormTarget.sampleindexfamily = (function ($) {
         title: "Name",
         data: "name",
         type: "read-only",
-      },
-      {
-        title: "Platform",
-        data: "platformType",
-        type: "read-only",
-        getDisplayValue: function (family) {
-          console.log("finding unique platform type");
-          console.log(Constants.platformTypes);
-          return Utils.array.findUniqueOrThrow(
-            Utils.array.namePredicate(family.platformType),
-            Constants.platformTypes
-          ).key;
-        },
       },
       {
         title: "Multi-Sequence Indices",

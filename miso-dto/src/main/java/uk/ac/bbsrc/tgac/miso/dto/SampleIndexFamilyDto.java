@@ -4,9 +4,7 @@ import static uk.ac.bbsrc.tgac.miso.dto.Dtos.*;
 
 import java.util.List;
 
-import uk.ac.bbsrc.tgac.miso.core.data.LibraryIndexFamily;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.SampleIndexFamily;
-import uk.ac.bbsrc.tgac.miso.core.data.type.PlatformType;
 
 import javax.annotation.Nonnull;
 
@@ -15,7 +13,6 @@ public class SampleIndexFamilyDto {
   private Long id;
   private String name;
   private List<SampleIndexDto> indices;
-  private String platformType;
   private boolean fakeSequence;
   private boolean uniqueDualIndex;
 
@@ -23,7 +20,6 @@ public class SampleIndexFamilyDto {
     SampleIndexFamilyDto to = new SampleIndexFamilyDto();
     setLong(to::setId, from.getId(), true);
     setString(to::setName, from.getName());
-    setString(to::setPlatformType, maybeGetProperty(from.getPlatformType(), PlatformType::name));
     setBoolean(to::setFakeSequence, from.hasFakeSequence(), false);
     setBoolean(to::setUniqueDualIndex, from.isUniqueDualIndex(), false);
     setBoolean(to::setArchived, from.getArchived(), false);
@@ -53,10 +49,6 @@ public class SampleIndexFamilyDto {
     this.name = name;
   }
 
-  public String getPlatformType() {
-    return platformType;
-  }
-
   public boolean getFakeSequence() {
     return fakeSequence;
   }
@@ -73,9 +65,6 @@ public class SampleIndexFamilyDto {
     this.archived = archived;
   }
 
-  public void setPlatformType(String platformType) {
-    this.platformType = platformType;
-  }
 
   public void setFakeSequence(boolean fake) {
     this.fakeSequence = fake;
@@ -97,7 +86,6 @@ public class SampleIndexFamilyDto {
     SampleIndexFamily to = new SampleIndexFamily();
     setLong(to::setId, getId(), false);
     setString(to::setName, getName());
-    setObject(to::setPlatformType, getPlatformType(), PlatformType::valueOf);
     setBoolean(to::setFake, getFakeSequence(), false);
     setBoolean(to::setUniqueDualIndex, isUniqueDualIndex(), false);
     setBoolean(to::setArchived, isArchived(), true);
