@@ -32,20 +32,12 @@ public class SampleIndexFamily implements Deletable, Serializable {
 
   private String name;
 
-  @Enumerated(EnumType.STRING)
-  @Column(nullable = false)
-  private PlatformType platformType;
-
   private boolean fakeSequence;
   private boolean uniqueDualIndex;
   private Boolean archived;
 
   public Boolean getArchived() {
     return archived;
-  }
-
-  public PlatformType getPlatformType() {
-    return platformType;
   }
 
   public boolean hasFakeSequence() {
@@ -56,9 +48,6 @@ public class SampleIndexFamily implements Deletable, Serializable {
     this.archived = archived;
   }
 
-  public void setPlatformType(PlatformType platform) {
-    this.platformType = platform;
-  }
 
   public void setFake(boolean fake) {
     this.fakeSequence = fake;
@@ -124,7 +113,6 @@ public class SampleIndexFamily implements Deletable, Serializable {
     return new HashCodeBuilder(11, 41)
             .append(archived)
             .append(name)
-            .append(platformType)
             .toHashCode();
   }
 
@@ -140,7 +128,6 @@ public class SampleIndexFamily implements Deletable, Serializable {
     return new EqualsBuilder()
             .append(archived, other.archived)
             .append(name, other.name)
-            .append(platformType, other.platformType)
             .isEquals();
   }
 }

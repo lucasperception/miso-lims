@@ -42,13 +42,6 @@ ListTarget.sampleindexfamily = {
         true
       ),
       {
-        sTitle: "Platform",
-        mData: "platformType",
-        include: true,
-        iSortPriority: 0,
-        mRender: ListUtils.render.platformType,
-      },
-      {
         sTitle: "Multi-Sequence Indices",
         mData: "fakeSequence",
         include: true,
