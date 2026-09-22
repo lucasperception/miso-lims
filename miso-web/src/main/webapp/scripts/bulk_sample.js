@@ -1150,7 +1150,7 @@ BulkTarget.sample = (function ($) {
             );
             if (indexFamily && indexFamily.uniqueDualIndex) {
               var index1 = indexFamily.indices.find(function (index) {
-                return index.position === 1 && index.label === newValue;
+                return index.position === 1 && index.name === newValue;
               });
               if (index1) {
                 var index2 = indexFamily.indices.find(function (index) {
@@ -1158,7 +1158,7 @@ BulkTarget.sample = (function ($) {
                 });
                 if (index2) {
                   api.updateField(rowIndex, "index2Id", {
-                    value: index2.label,
+                    value: index2.name,
                   });
                 }
               }

@@ -456,6 +456,7 @@ FormTarget.sample = (function ($) {
               data: "timepoint",
               type: "text",
               maxLength: 50,
+              description: "When the sample was taken",
               regex: Utils.validation.uriComponentRegex,
               description:
                 "When the sample was taken. The following characters are prohibited: <>&%;/\\",
@@ -742,6 +743,13 @@ FormTarget.sample = (function ($) {
   }
 
   function makeIndexFields(sample) {
+    var family = sample.indexFamilyId
+      ? Utils.array.findUniqueOrThrow(
+        Utils.array.idPredicate(sample.indexFamilyId),
+        Constants.sampleIndexFamilies
+      )
+      : null;
+
     return [
       {
         title: "Index Family",
@@ -761,6 +769,7 @@ FormTarget.sample = (function ($) {
           var changes2 = {
             disabled: !newValue,
             required: false,
+            value: "",
           };
           if (newValue) {
             var family = Utils.array.findUniqueOrThrow(
@@ -773,11 +782,14 @@ FormTarget.sample = (function ($) {
             changes2.source = family.indices.filter(function (index) {
               return index.position === 2;
             });
+            if (family.uniqueDualIndex) {
+              changes2.disabled = true;
+              changes2.required = false;
+            }
           } else {
             changes.source = [];
             changes2.source = [];
           }
-          changes2.value = null;
           form.updateField("indexId", changes);
           form.updateField("index2Id", changes2);
         },
@@ -787,11 +799,8 @@ FormTarget.sample = (function ($) {
         data: "indexId",
         type: "dropdown",
         include: Constants.sampleIndexFamilies && Constants.sampleIndexFamilies.length,
-        source: sample.indexFamilyId
-          ? Utils.array.findUniqueOrThrow(
-            Utils.array.idPredicate(sample.indexFamilyId),
-            Constants.sampleIndexFamilies
-          ).indices.filter(function (index) {
+        source: family
+          ? family.indices.filter(function (index) {
             return index.position === 1;
           })
           : [],
@@ -799,32 +808,24 @@ FormTarget.sample = (function ($) {
         getItemLabel: Utils.array.getName,
         getItemValue: Utils.array.getId,
         onChange: function (newValue, form) {
-          if (!newValue) {
-            return;
-          }
-          var indexFamilyId = form.getValue("indexFamilyId");
-          if (!indexFamilyId) {
-            return;
-          }
-          var indexFamily = Utils.array.findUniqueOrThrow(
+          var indexFamilyId = form.get("indexFamilyId");
+          if (!indexFamilyId || !newValue) return;
+          var family = Utils.array.findUniqueOrThrow(
             Utils.array.idPredicate(indexFamilyId),
             Constants.sampleIndexFamilies
           );
-          if (indexFamily.uniqueDualIndex) {
-            var index1 = indexFamily.indices.find(function (index) {
-              return index.position === 1 && index.indexId === newValue;
-            });
-            if (index1) {
-              var index2 = indexFamily.indices.find(function (index) {
-                return index.position === 2 && index.name === index1.name;
-              });
-              if (index2) {
-                form.updateField("index2Id", {
-                  value: index2.indexId,
-                });
-              }
-            }
-          }
+          if (!family.uniqueDualIndex) return;
+          var index1 = Utils.array.findUniqueOrThrow(
+            Utils.array.idPredicate(newValue),
+            family.indices
+          );
+          var index2 = family.indices.find(function (index) {
+            return index.position === 2 && index.name === index1.name;
+          });
+          form.updateField("index2Id", {
+            value: index2 ? index2.id : "",
+            disabled: true,
+          });
         },
       },
       {
@@ -832,11 +833,9 @@ FormTarget.sample = (function ($) {
         data: "index2Id",
         type: "dropdown",
         include: Constants.sampleIndexFamilies && Constants.sampleIndexFamilies.length,
-        source: sample.indexFamilyId
-          ? Utils.array.findUniqueOrThrow(
-            Utils.array.idPredicate(sample.indexFamilyId),
-            Constants.sampleIndexFamilies
-          ).indices.filter(function (index) {
+        disabled: !!(family && family.uniqueDualIndex),
+        source: family
+          ? family.indices.filter(function (index) {
             return index.position === 2;
           })
           : [],
