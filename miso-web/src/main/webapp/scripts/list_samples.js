@@ -52,6 +52,7 @@ ListTarget.sample = (function () {
             {
               name: "Remove",
               action: samplesUpdateFunction(
+                "Removing Requisitioned Samples",
                 Urls.rest.requisitions.removeSamples(config.requisitionId)
               ),
             },
@@ -130,9 +131,10 @@ ListTarget.sample = (function () {
                   if (!validateSamples(data)) {
                     return;
                   }
-                  samplesUpdateFunction(Urls.rest.requisitions.addSamples(config.requisitionId))(
-                    data
-                  );
+                  samplesUpdateFunction(
+                    "Adding Requisitioned Samples",
+                    Urls.rest.requisitions.addSamples(config.requisitionId)
+                  )(data);
                 }
               );
             },
@@ -361,20 +363,20 @@ ListTarget.sample = (function () {
   };
 
   function getCreatableCategories() {
-    return ["Identity", "Tissue", "Tissue Processing", "Stock", "Aliquot"].filter(function (
-      category
-    ) {
-      return Constants.sampleClasses.some(function (sampleClass) {
-        return (
-          !sampleClass.archived &&
-          sampleClass.directCreationAllowed &&
-          sampleClass.sampleCategory === category
-        );
-      });
-    });
+    return ["Identity", "Tissue", "Tissue Processing", "Stock", "Aliquot"].filter(
+      function (category) {
+        return Constants.sampleClasses.some(function (sampleClass) {
+          return (
+            !sampleClass.archived &&
+            sampleClass.directCreationAllowed &&
+            sampleClass.sampleCategory === category
+          );
+        });
+      }
+    );
   }
 
-  function samplesUpdateFunction(saveUrl) {
+  function samplesUpdateFunction(title, saveUrl) {
     return function (items) {
       var callback = function (update) {
         switch (update.status) {
@@ -393,6 +395,7 @@ ListTarget.sample = (function () {
         }
       };
       Utils.saveWithProgressDialog(
+        title,
         "POST",
         saveUrl,
         items.map(Utils.array.getId),
@@ -471,24 +474,32 @@ ListTarget.sample = (function () {
   }
 
   function showFindRelatedIdentitySelectDialog(config) {
-    var actions = config.identities.map(function (identity) {
-      return {
-        name: identity.alias + " (" + identity.externalName + ")",
-        handler: function () {
-          showFindRelatedCategorySelectDialog(config, [identity]);
-        },
-      };
-    });
-    actions.unshift({
-      name: "All identities",
-      handler: function () {
-        showFindRelatedCategorySelectDialog(config, config.identities);
-      },
-    });
-    Utils.showWizardDialog(
-      "Find Related Samples",
-      actions,
-      "Which identity would you like to supplement?"
+    Utils.ajaxWithDialog(
+      "Finding identities",
+      "GET",
+      Urls.rest.requisitions.listIdentities(config.requisitionId),
+      null,
+      function (identities) {
+        var actions = identities.map(function (identity) {
+          return {
+            name: identity.alias + " (" + identity.externalName + ")",
+            handler: function () {
+              showFindRelatedCategorySelectDialog(config, [identity]);
+            },
+          };
+        });
+        actions.unshift({
+          name: "All identities",
+          handler: function () {
+            showFindRelatedCategorySelectDialog(config, identities);
+          },
+        });
+        Utils.showWizardDialog(
+          "Find Related Samples",
+          actions,
+          "Which identity would you like to supplement?"
+        );
+      }
     );
   }
 

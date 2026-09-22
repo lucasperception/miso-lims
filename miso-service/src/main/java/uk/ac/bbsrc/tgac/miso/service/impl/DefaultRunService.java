@@ -10,8 +10,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -30,11 +32,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.eaglegenomics.simlims.core.Note;
 import com.eaglegenomics.simlims.core.User;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ArrayNode;
 import uk.ac.bbsrc.tgac.miso.core.data.Barcodable;
 import uk.ac.bbsrc.tgac.miso.core.data.IlluminaRun;
 import uk.ac.bbsrc.tgac.miso.core.data.InstrumentDataManglingPolicy;
@@ -45,10 +46,15 @@ import uk.ac.bbsrc.tgac.miso.core.data.OxfordNanoporeRun;
 import uk.ac.bbsrc.tgac.miso.core.data.Partition;
 import uk.ac.bbsrc.tgac.miso.core.data.Run;
 import uk.ac.bbsrc.tgac.miso.core.data.RunPartition;
+import uk.ac.bbsrc.tgac.miso.core.data.RunSopFieldValue;
 import uk.ac.bbsrc.tgac.miso.core.data.SequencerPartitionContainer;
 import uk.ac.bbsrc.tgac.miso.core.data.SequencingParameters;
 import uk.ac.bbsrc.tgac.miso.core.data.SolidRun;
+import uk.ac.bbsrc.tgac.miso.core.data.SopField;
+import uk.ac.bbsrc.tgac.miso.core.data.UltimaRun;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.RunPosition;
+import uk.ac.bbsrc.tgac.miso.core.data.impl.Sop;
+import uk.ac.bbsrc.tgac.miso.core.data.impl.Sop.SopCategory;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.changelog.RunChangeLog;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.changelog.SequencerPartitionContainerChangeLog;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.kit.KitDescriptor;
@@ -70,6 +76,7 @@ import uk.ac.bbsrc.tgac.miso.core.service.RunService;
 import uk.ac.bbsrc.tgac.miso.core.service.SequencingParametersService;
 import uk.ac.bbsrc.tgac.miso.core.service.SopService;
 import uk.ac.bbsrc.tgac.miso.core.service.UserService;
+import uk.ac.bbsrc.tgac.miso.core.service.WorkstationService;
 import uk.ac.bbsrc.tgac.miso.core.service.exception.ValidationError;
 import uk.ac.bbsrc.tgac.miso.core.service.exception.ValidationException;
 import uk.ac.bbsrc.tgac.miso.core.service.naming.NamingScheme;
@@ -135,6 +142,8 @@ public class DefaultRunService implements RunService {
   private FileAttachmentService fileAttachmentService;
   @Autowired
   private SopService sopService;
+  @Autowired
+  private WorkstationService workstationService;
   @Autowired
   private HibernateUtilDao hibernateUtilDao;
 
@@ -315,6 +324,8 @@ public class DefaultRunService implements RunService {
     loadChildEntity(run::setSequencer, run.getSequencer(), instrumentService, "instrumentId");
     loadChildEntity(run::setSequencingKit, run.getSequencingKit(), kitDescriptorService, "sequencingKitId");
     loadChildEntity(run::setDataReviewer, run.getDataReviewer(), userService, "dataReviewer");
+    loadChildEntity(run::setSop, run.getSop(), sopService, "sopId");
+    loadSopFieldValues(run);
     if (run.getRunPositions() != null) {
       for (RunPosition position : run.getRunPositions()) {
         if (position.getContainer().isSaved()) {
@@ -325,7 +336,6 @@ public class DefaultRunService implements RunService {
         }
       }
     }
-    loadChildEntity(run::setSop, run.getSop(), sopService, "sopId");
   }
 
   private void validateChanges(Run before, Run changed) throws IOException {
@@ -417,6 +427,19 @@ public class DefaultRunService implements RunService {
       }
     }
 
+    if (changed.getSop() != null) {
+      if (changed.getSop().getCategory() != SopCategory.RUN) {
+        errors.add(new ValidationError("sopId", "Only run SOPs may be assigned to a run"));
+      }
+
+      if (isChanged(Run::getSop, changed, before) && changed.getSop().isArchived()) {
+        errors.add(new ValidationError("sopId", "Cannot assign an archived SOP to a run"));
+      }
+    }
+
+    ValidationUtils.validateSopFieldValues(changed.getSop(), changed.getSopFieldValues(), workstationService,
+        instrumentService, errors);
+
     if (!errors.isEmpty()) {
       throw new ValidationException(errors);
     }
@@ -444,6 +467,14 @@ public class DefaultRunService implements RunService {
     }
   }
 
+  private void loadSopFieldValues(Run run) {
+    if (run.getSopFieldValues() == null) {
+      return;
+    }
+    run.getSopFieldValues().forEach(value -> value.setRun(run));
+    ValidationUtils.loadSopFieldValues(run.getSop(), run.getSopFieldValues());
+  }
+
   private void applyChanges(Run target, Run source) throws IOException {
     target.setAlias(source.getAlias());
     target.setAccession(source.getAccession());
@@ -466,7 +497,11 @@ public class DefaultRunService implements RunService {
     target.setDataReview(source.getDataReview());
     target.setDataReviewer(source.getDataReviewer());
     target.setDataReviewDate(source.getDataReviewDate());
+    ValidationUtils.makeSopChangesChangeLog(target, target.getSopFieldValues(), source.getSopFieldValues(),
+        changeLogService, authorizationManager.getCurrentUser());
     target.setSop(source.getSop());
+    ValidationUtils.applySopFieldValueChanges(target.getSopFieldValues(), source.getSopFieldValues(),
+        RunSopFieldValue::new, fieldValue -> fieldValue.setRun(target));
     target.setDataManglingPolicy(source.getDataManglingPolicy());
     if (isIlluminaRun(target)) {
       applyIlluminaChanges((IlluminaRun) target, (IlluminaRun) source);
@@ -476,6 +511,8 @@ public class DefaultRunService implements RunService {
       applySolidChanges((SolidRun) target, (SolidRun) source);
     } else if (isOxfordNanoporeRun(target)) {
       applyOxfordNanoporeChanges((OxfordNanoporeRun) target, (OxfordNanoporeRun) source);
+    } else if (isUltimaRun(target)) {
+      applyUltimaChanges((UltimaRun) target, (UltimaRun) source);
     }
     // Source metrics will only be set when coming from Run Scanner
     if (source.getMetrics() != null) {
@@ -545,6 +582,12 @@ public class DefaultRunService implements RunService {
   private void applyOxfordNanoporeChanges(OxfordNanoporeRun target, OxfordNanoporeRun source) {
     target.setMinKnowVersion(isStringEmptyOrNull(source.getMinKnowVersion()) ? null : source.getMinKnowVersion());
     target.setProtocolVersion(isStringEmptyOrNull(source.getProtocolVersion()) ? null : source.getProtocolVersion());
+  }
+
+  private void applyUltimaChanges(UltimaRun target, UltimaRun source) {
+    target.setCompletedFlows(source.getCompletedFlows());
+    target.setExpectedFlows(source.getExpectedFlows());
+    target.setWaferShelf(source.getWaferShelf());
   }
 
   /**
@@ -635,7 +678,8 @@ public class DefaultRunService implements RunService {
   }
 
   @Override
-  public boolean processNotification(Run source) throws IOException, MisoNamingException {
+  public boolean processNotification(Run source, Map<String, String> consumableDataByType)
+      throws IOException, MisoNamingException {
     User user = userService.getByLoginName("notification");
     final Run target;
 
@@ -646,6 +690,7 @@ public class DefaultRunService implements RunService {
       target = source.getPlatformType().createRun();
       target.setAlias(source.getAlias());
       target.setSequencer(source.getSequencer());
+      target.setSop(getDefaultRunSop(target));
       isNew = true;
     } else {
       target = runFromDb;
@@ -669,6 +714,9 @@ public class DefaultRunService implements RunService {
     isMutated |= updateSequencingKitFromNotification(target, source.getSequencingKit());
     isMutated |= updateDataManglingPolicyFromNotification(target, source.getDataManglingPolicy(), user);
 
+
+    isMutated |= updateSopFieldValuesFromConsumables(target, consumableDataByType);
+
     switch (source.getPlatformType()) {
       case ILLUMINA:
         isMutated |= updateIlluminaRunFromNotification((IlluminaRun) source, (IlluminaRun) target);
@@ -686,9 +734,11 @@ public class DefaultRunService implements RunService {
             ((OxfordNanoporeRun) target).getProtocolVersion(),
             ((OxfordNanoporeRun) target)::setProtocolVersion);
         break;
+      case ELEMENT:
       case IONTORRENT:
       case PACBIO:
       case SOLID:
+      case ULTIMA:
         // Nothing to do
         break;
       default:
@@ -705,6 +755,72 @@ public class DefaultRunService implements RunService {
     return isNew;
   }
 
+  private boolean updateSopFieldValuesFromConsumables(Run target, Map<String, String> consumableDataByType)
+      throws IOException {
+    if (consumableDataByType == null || consumableDataByType.isEmpty() || target.getSop() == null) {
+      return false;
+    }
+
+    Map<String, List<SopField>> fieldsByConsumableName = new HashMap<>();
+    for (SopField field : target.getSop().getFields()) {
+      fieldsByConsumableName.computeIfAbsent(normalizeConsumableFieldName(field.getName()), key -> new ArrayList<>())
+          .add(field);
+    }
+
+    Map<Long, RunSopFieldValue> existingValueByFieldId = target.getSopFieldValues().stream()
+        .collect(Collectors.toMap(value -> value.getSopField().getId(), value -> value));
+
+    boolean changed = false;
+    for (Map.Entry<String, String> consumable : consumableDataByType.entrySet()) {
+      List<SopField> matchingFields = fieldsByConsumableName.get(normalizeConsumableFieldName(consumable.getKey()));
+      if (matchingFields == null) {
+        continue;
+      }
+
+      for (SopField sopField : matchingFields) {
+        if (!ValidationUtils.isValidSopFieldValue(sopField, consumable.getValue(), workstationService,
+            instrumentService)) {
+          continue;
+        }
+
+        // Never overwrite existing values
+        RunSopFieldValue existingValue = existingValueByFieldId.get(sopField.getId());
+        if (existingValue != null && !isStringBlankOrNull(existingValue.getValue())) {
+          continue;
+        }
+
+        if (existingValue == null) {
+          existingValue = new RunSopFieldValue();
+          existingValue.setRun(target);
+          existingValue.setSopField(sopField);
+          target.getSopFieldValues().add(existingValue);
+          existingValueByFieldId.put(sopField.getId(), existingValue);
+        }
+
+        existingValue.setValue(consumable.getValue());
+        changed = true;
+      }
+    }
+
+    return changed;
+  }
+
+  private static String normalizeConsumableFieldName(String name) {
+    if (name == null) {
+      return "";
+    }
+    String normalized = name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
+    return normalized.replaceFirst("(lotnumber|lotno|lotnum|lot)$", "");
+  }
+
+  private static Sop getDefaultRunSop(Run run) {
+    InstrumentModel model = run.getSequencer().getInstrumentModel();
+    if (model == null || model.getDefaultRunSop() == null || model.getDefaultRunSop().isArchived()) {
+      return null;
+    }
+    return model.getDefaultRunSop();
+  }
+
   private boolean updateMetricsFromNotification(Run source, Run target) {
     if (source.getMetrics() == null) {
       return false;
@@ -716,22 +832,12 @@ public class DefaultRunService implements RunService {
       return true;
     }
 
-    // Use separate ObjectMapper to allow <>& characters, which may be used in metrics
-    ObjectMapper metricsMapper = new ObjectMapper();
+    // Use separate JsonMapper to allow <>& characters, which may be used in metrics
+    JsonMapper metricsMapper = JsonMapper.builder().build();
     ArrayNode sourceMetrics;
-    try {
-      sourceMetrics = metricsMapper.readValue(source.getMetrics(), ArrayNode.class);
-    } catch (IOException e) {
-      log.error("Impossible junk metrics were passed in for run " + target.getId(), e);
-      return false;
-    }
+    sourceMetrics = metricsMapper.readValue(source.getMetrics(), ArrayNode.class);
     ArrayNode targetMetrics;
-    try {
-      targetMetrics = metricsMapper.readValue(target.getMetrics(), ArrayNode.class);
-    } catch (IOException e) {
-      log.error("The database is full of garbage metrics for run " + target.getId(), e);
-      return false;
-    }
+    targetMetrics = metricsMapper.readValue(target.getMetrics(), ArrayNode.class);
     Map<String, JsonNode> sourceMetricsMap = parseMetrics(sourceMetrics);
     Map<String, JsonNode> targetMetricsMap = parseMetrics(targetMetrics);
     boolean changed = false;
@@ -744,13 +850,8 @@ public class DefaultRunService implements RunService {
     if (changed) {
       ArrayNode combinedMetrics = metricsMapper.createArrayNode();
       combinedMetrics.addAll(targetMetricsMap.values());
-      try {
-        target.setMetrics(metricsMapper.writeValueAsString(combinedMetrics));
-        return true;
-      } catch (JsonProcessingException e) {
-        log.error("Failed to save data just unserialised.", e);
-        return false;
-      }
+      target.setMetrics(metricsMapper.writeValueAsString(combinedMetrics));
+      return true;
     }
     return false;
   }
@@ -759,7 +860,7 @@ public class DefaultRunService implements RunService {
     Map<String, JsonNode> results = new TreeMap<>();
     for (JsonNode node : metrics) {
       if (node.isObject()) {
-        results.put(node.get("type").textValue(), node);
+        results.put(node.get("type").stringValue(), node);
       }
     }
     return results;

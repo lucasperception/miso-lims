@@ -284,6 +284,24 @@ When editing SOPs in MISO, keep in mind that your changes will affect existing i
 When a new version of an SOP is created, the old one should be archived in MISO, and a new one created with the same
 name and the new version. This way, you continue to track which version of an SOP was used to prepare older items.
 
+### SOP Fields
+
+SOP fields are used to capture additional SOP-specific information, such as reagent LOT numbers.
+Each field has a name, a data type (text, number, workstation, or instrument), and optional units.
+When the SOP is added to an item, that item gains all of the fields defined by the SOP. A
+workstation field is entered by selecting one of the workstations defined in MISO, rather than
+typing a value. An instrument field also specifies an instrument model when it is created; the
+field is entered by selecting one of the instruments of that model defined in MISO.
+
+SOP fields can only be added to run and sample SOPs. Library SOPs do not support SOP fields at this
+time.
+
+If Run Scanner is being used, run SOP field values may be automatically populated based on the
+consumables reported by Run Scanner. For this to work, the SOP field name in MISO must match the
+consumable type reported by Run Scanner. A suffix of "lot number", "lot no", "lot num", or "lot" may
+be added to the field name for clarity; matching is case-insensitive and ignores spaces and special
+characters. For example, a MISO SOP field named "Reagent LOT#" will be matched against a Run Scanner
+consumable type of "Reagent".
 
 
 ## Sample Indices

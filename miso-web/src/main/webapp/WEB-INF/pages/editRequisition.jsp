@@ -20,6 +20,11 @@
       <div id="requisitionForm_assaysError"></div>
       <div id="listAssays"></div>
 
+      <br />
+      <h1>Contacts</h1>
+      <div id="requisitionForm_contactsError"></div>
+      <div id="contacts_section"></div>
+
       <div id="samples">
         <c:choose>
           <c:when test="${pageMode eq 'create'}">
@@ -110,7 +115,7 @@
             </div>
             <div id="supl_samples_section" class="expandable_section">
               <miso:list-section-ajax id="list_supplementalsamples" name="Supplemental Samples" target="sample"
-                  config="{requisitionId: ${requisition.id}, relation: 'supplemental', requisition: ${requisitionDto}, identities: ${identityDtos}, collapseId: 'supl_samples_section'}" />
+                  config="{requisitionId: ${requisition.id}, relation: 'supplemental', requisition: ${requisitionDto}, collapseId: 'supl_samples_section'}" />
             </div>
 
             <div class="sectionDivider"
@@ -130,7 +135,7 @@
             </div>
             <div id="supl_libraries_section" class="expandable_section">
               <miso:list-section-ajax id="list_supplementallibraries" name="Supplemental Libraries" target="library"
-                config="{requisitionId: ${requisition.id}, relation: 'supplemental', requisition: ${requisitionDto}, identities: ${identityDtos}, collapseId: 'supl_libraries_section'}" />
+                config="{requisitionId: ${requisition.id}, relation: 'supplemental', requisition: ${requisitionDto}, collapseId: 'supl_libraries_section'}" />
             </div>
             <br />
 
@@ -141,9 +146,13 @@
             
             <miso:list-section-ajax id="list_preparedlibraries" name="Prepared Libraries" target="library"
               config="{ requisitionId: ${requisition.id}, relation: 'indirect' }" />
-            
-            <miso:list-section id="list_runs" name="Runs" target="run" items="${runs}"
-              config="{requisitionId: ${requisition.id}}" />
+
+            <br />
+              
+            <h1>Runs</h1>
+            <div id="list_runs">
+              <img src="/styles/images/ajax-loader.gif" class="fg-button" />
+            </div>
 
             <br />
 
@@ -181,6 +190,10 @@
             requisitionId: requisition.id
           };
 
+          var contactsConfig = {
+            requisitionId: requisition.id
+          };
+
           <c:if test="${pageMode eq 'edit'}">
             assayConfig["potentialAssayIds"] = ${potentialAssayIds};
             assayConfig["numberOfRequisitionedItems"] = ${numberOfRequisitionedItems};
@@ -197,6 +210,9 @@
             return Utils.array.findUniqueOrThrow(Utils.array.idPredicate(assayId), Constants.assays);
           }));
 
+          Requisition.setContactsListConfig(contactsConfig);
+          Requisition.setContacts(requisition.contacts || []);
+
           if ('${pageMode}' === 'edit') {
             Requisition.setPauses(requisition.pauses);
             if (!requisition.pauses || !requisition.pauses.length) {
@@ -206,14 +222,23 @@
               Utils.ui.collapse('#notes', '#notes_arrowclick');
             </c:if>
             $.ajax({
+              url: Urls.rest.requisitions.listRuns(${ requisition.id }),
+              dataType: 'json'
+            }).done(function (data) {
+              $('#list_runs').empty();
+              FormUtils.setTableData(ListTarget.run, { requisitionId: ${ requisition.id }}, 'list_runs', data);
+            }).fail(function () {
+              Utils.showOkDialog('Error', ['Failed to load runs']);
+            });
+            $.ajax({
               url: Urls.rest.requisitions.listRunLibraries(${ requisition.id }),
               dataType: 'json'
             }).done(function (data) {
               $('#list_runLibraries').empty();
               FormUtils.setTableData(ListTarget.runaliquot, { requisitionId: ${ requisition.id }}, 'list_runLibraries', data);
-          }).fail(function () {
-            Utils.showOkDialog('Error', ['Failed to load run-libraries']);
-          });
+            }).fail(function () {
+              Utils.showOkDialog('Error', ['Failed to load run-libraries']);
+            });
           }
         });
       </script>

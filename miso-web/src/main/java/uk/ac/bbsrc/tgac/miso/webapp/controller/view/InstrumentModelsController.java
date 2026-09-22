@@ -10,16 +10,18 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.servlet.ModelAndView;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import uk.ac.bbsrc.tgac.miso.core.data.InstrumentModel;
+import uk.ac.bbsrc.tgac.miso.core.data.impl.Sop.SopCategory;
 import uk.ac.bbsrc.tgac.miso.core.security.AuthorizationManager;
 import uk.ac.bbsrc.tgac.miso.core.service.InstrumentModelService;
+import uk.ac.bbsrc.tgac.miso.core.service.SopService;
 import uk.ac.bbsrc.tgac.miso.dto.Dtos;
 import uk.ac.bbsrc.tgac.miso.dto.InstrumentModelDto;
 import uk.ac.bbsrc.tgac.miso.webapp.controller.component.NotFoundException;
 import uk.ac.bbsrc.tgac.miso.webapp.util.ListItemsPageWithAuthorization;
+import uk.ac.bbsrc.tgac.miso.webapp.util.MisoWebUtils;
 import uk.ac.bbsrc.tgac.miso.webapp.util.PageMode;
 
 @Controller
@@ -29,17 +31,20 @@ public class InstrumentModelsController {
   @Autowired
   private InstrumentModelService instrumentModelService;
   @Autowired
+  private SopService sopService;
+  @Autowired
   private AuthorizationManager authorizationManager;
   @Autowired
-  private ObjectMapper mapper;
+  private JsonMapper mapper;
 
   @GetMapping("/list")
   public ModelAndView list(ModelMap model) throws IOException {
+    model.put("title", "Instrument Models");
     return new ListItemsPageWithAuthorization("instrumentmodel", authorizationManager, mapper).list(model);
   }
 
   @GetMapping("/new")
-  public ModelAndView create(ModelMap model) throws JsonProcessingException {
+  public ModelAndView create(ModelMap model) throws IOException {
     model.put("title", "New Instrument Model");
     model.put(PageMode.PROPERTY, PageMode.CREATE.getLabel());
     InstrumentModel instrumentModel = new InstrumentModel();
@@ -59,9 +64,12 @@ public class InstrumentModelsController {
   }
 
   private ModelAndView instrumentModelPage(InstrumentModel instrumentModel, ModelMap model)
-      throws JsonProcessingException {
+      throws IOException {
     InstrumentModelDto dto = Dtos.asDto(instrumentModel);
     model.put("modelDto", mapper.writeValueAsString(dto));
+    ObjectNode formConfig = mapper.createObjectNode();
+    MisoWebUtils.addJsonArray(mapper, formConfig, "sops", sopService.listByCategory(SopCategory.RUN), Dtos::asDto);
+    model.put("formConfig", mapper.writeValueAsString(formConfig));
     return new ModelAndView("/WEB-INF/pages/editInstrumentModel.jsp", model);
   }
 

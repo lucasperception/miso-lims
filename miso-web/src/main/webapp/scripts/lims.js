@@ -257,6 +257,12 @@ var Utils = Utils || {
     }
 
     var output = {};
+    var conditionalFields = [];
+    var updateVisibility = function () {
+      conditionalFields.forEach(function (item) {
+        item.p.style.display = item.showIf(output) ? "" : "none";
+      });
+    };
     fields.forEach(function (field) {
       var p = document.createElement("P");
       var input;
@@ -267,6 +273,12 @@ var Utils = Utils || {
             return;
           }
           input = document.createElement("SELECT");
+          if (field.nullLabel) {
+            var option = document.createElement("OPTION");
+            option.text = field.nullLabel;
+            option.value = -1;
+            input.appendChild(option);
+          }
           field.values.forEach(function (value, index) {
             var option = document.createElement("OPTION");
             option.text = field.getLabel ? field.getLabel(value) : value;
@@ -278,10 +290,15 @@ var Utils = Utils || {
             }
           });
           input.onchange = function () {
-            output[field.property] = field.values[parseInt(input.value)];
+            var selectedIndex = parseInt(input.value);
+            if (selectedIndex === -1) {
+              output[field.property] = null;
+            } else {
+              output[field.property] = field.values[selectedIndex];
+            }
           };
           if (!field.value) {
-            output[field.property] = field.values[0];
+            output[field.property] = field.nullLabel || field.values[0];
           }
           break;
         case "text":
@@ -414,6 +431,16 @@ var Utils = Utils || {
         default:
           throw new Error("Unknown field type: " + field.type);
       }
+      if (field.showIf) {
+        conditionalFields.push({ p: p, showIf: field.showIf });
+      }
+      if (input.onchange) {
+        var originalOnchange = input.onchange;
+        input.onchange = function () {
+          originalOnchange();
+          updateVisibility();
+        };
+      }
       if (input.tagName === "INPUT" && input.type === "text" && field.series) {
         input.classList.add(field.series + "InputSeries");
         input.addEventListener("paste", function (event) {
@@ -441,6 +468,7 @@ var Utils = Utils || {
       p.appendChild(input);
       dialogArea.appendChild(p);
     });
+    updateVisibility();
 
     var buttons = {};
     buttons[okButton] = {
@@ -449,7 +477,8 @@ var Utils = Utils || {
       click: function () {
         var missingFields = fields
           .filter(function (field) {
-            return field.required && !output[field.property];
+            var visible = !field.showIf || field.showIf(output);
+            return visible && field.required && !output[field.property];
           })
           .map(function (field) {
             return field.label;
@@ -701,12 +730,28 @@ var Utils = Utils || {
     request.open(data ? "POST" : "GET", url);
     request.responseType = "blob";
     request.setRequestHeader("Content-Type", "application/json; charset=utf8");
-    request.setRequestHeader("Accept", "application/octet-stream");
+    request.setRequestHeader("Accept", "application/octet-stream, application/json");
     request.onreadystatechange = function () {
       if (request.readyState === 4) {
         dialog.dialog("close");
         if (request.status === 200) {
-          var filename = /filename=(.*)$/.exec(request.getResponseHeader("Content-Disposition"))[1];
+          contentDisposition = request.getResponseHeader("Content-Disposition");
+          var filename = null;
+          var match = /filename\*=(?:UTF-8'')?(.*)(?:; ?|$)/.exec(
+            request.getResponseHeader("Content-Disposition")
+          );
+          if (match) {
+            filename = decodeURIComponent(match[1]);
+          } else {
+            match = filename = /filename=(["']?)(.*)\1(?:; ?|$)/.exec(
+              request.getResponseHeader("Content-Disposition")
+            );
+            if (match) {
+              filename = match[2];
+            } else {
+              throw Error("Couldn't determine filename for download");
+            }
+          }
           download(request.response, filename, request.getResponseHeader("Content-Type"));
         } else {
           Utils.showOkDialog("Error", ["Download failed."]);
@@ -826,6 +871,7 @@ var Utils = Utils || {
   },
 
   saveWithProgressDialog: function (
+    title,
     requestMethod,
     saveUrl,
     data,
@@ -859,7 +905,7 @@ var Utils = Utils || {
       autoOpen: true,
       height: 400,
       width: 350,
-      title: "Adding",
+      title: title,
       modal: true,
       buttons: {},
       closeOnEscape: false,

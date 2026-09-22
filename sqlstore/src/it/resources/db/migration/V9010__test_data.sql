@@ -24,7 +24,14 @@ INSERT INTO Sop(sopId, alias, version, category, url, archived) VALUES
 (2, 'Sample SOP 2', '1.0', 'SAMPLE', 'http://sops.test.com/sample/2/1', FALSE),
 (3, 'Library SOP 1', '1.0', 'LIBRARY', 'http://sops.test.com/library/1/1', FALSE),
 (4, 'Library SOP 1', '2.0', 'LIBRARY', 'http://sops.test.com/library/1/2', FALSE),
-(5, 'Run SOP 1', '1.0', 'RUN', 'http://sops.test.com/run/1/1', FALSE);
+(5, 'Run SOP 1', '1.0', 'RUN', 'http://sops.test.com/run/1/1', FALSE),
+(101, 'Test NovaSeq SOP', '1.0', 'RUN', 'http://test.com/sop', 0);
+
+INSERT INTO SopField (sopId, name, units, fieldType) VALUES
+  (101, 'Flow Cell Lot Number', NULL, 'TEXT'),
+  (101, 'Reagent Cartridge Lot', NULL, 'TEXT'),
+  (101, 'PhiX Spike-in %', '%', 'NUMBER'),
+  (101, 'Library Concentration', 'nM', 'NUMBER');
 
 INSERT INTO ScientificName(scientificNameId, alias) VALUES
 (1, 'Homo sapiens'),
@@ -1051,6 +1058,10 @@ INSERT INTO ArrayRun(arrayRunId, alias, instrumentId, arrayId, health, startDate
 (1, 'ArrayRun_1', 3, 1, 'Running', '2018-02-02', 1, '2018-02-02 15:40:00', 1, '2018-02-02 15:40:00'),
 (2, 'ArrayRun_2',3,2, 'Running', '2022-06-23',1,'2022-06-23 16:30:00',1,'2022-06-23 16:13:00');
 
+INSERT INTO ArrayRun_Sample(arrayRunId, arrayId, position, sampleId, statusId, qcNote, qcUser, qcDate) VALUES
+(2, 2, 'R02C01', 26, 1, 'keep qc', 1, '2026-04-01'),
+(2, 2, 'R03C01', 27, 2, 'remove qc', 1, '2026-04-02');
+
 INSERT INTO WorkflowProgress(workflowProgressId, workflowName, userId) VALUES
 (1, 'LOAD_SEQUENCER', 3),
 (2, 'LOAD_SEQUENCER', 3);
@@ -1175,3 +1186,219 @@ INSERT INTO Project_Contact (projectId, contactId, contactRoleId) VALUES
 INSERT INTO ApiKey(keyId, userId, apiKey, apiSecret, creator, created) VALUES
 -- unencrypted key: LwTTBMu4QSOeTWp7Uo7Bva0Jm0+Zpnxb-jw24z317EwhjoqtswuROsj1DFXoD9WT6
 (1, 1, 'LwTTBMu4QSOeTWp7Uo7Bva0Jm0+Zpnxb', '{bcrypt}$2a$10$l2gtUtIdwV98avW6C7DYZOkhDdRKuiYADiOm33UkkdabaxjITvpDS', 1, '2025-03-11 15:10:00');
+
+INSERT INTO SampleSheet(sampleSheetId, name, platformType, parameters, sections) VALUES
+(1, 'Empty Illumina', 'ILLUMINA', '[]', '[]'),
+(2, 'Empty Ultima', 'ULTIMA', '[]', '[]'),
+(3, 'Clone Checking', 'ILLUMINA', '[
+  {
+    "name": "Genome Folder",
+    "type": "TEXT",
+    "defaultValue": "Homo_sapiens\\\\UCSC\\\\hg19\\\\Sequence\\\\WholeGenomeFasta"
+  },
+  {
+    "name": "Custom Read 1 Primer Well",
+    "type": "TEXT"
+  },
+  {
+    "name": "Custom Index Primer Well",
+    "type": "TEXT"
+  },
+  {
+    "name": "Custom Read 2 Primer Well",
+    "type": "TEXT"
+  }
+]', '[
+  {
+    "name": "Header",
+    "format": "ROWS",
+    "fields": [
+      {
+        "name": "Index Adapters",
+        "sources": [{
+            "source": "LIBRARY_ALIQUOT",
+            "sourceProperty": "INDEX_FAMILY",
+            "separator": "/"
+        }]
+      },
+      {
+        "name": "IEMFileVersion",
+        "sources": [{
+          "value": "5"
+        }]
+      },
+      {
+        "name": "Experiment Name",
+        "sources": [{
+          "source": "POOL",
+          "sourceProperty": "ALIAS",
+          "separator": "/"
+        }]
+      },
+      {
+        "name": "Date",
+        "sources": [{
+          "source": "CURRENT_TIME",
+          "dateFormat": "M/d/yyyy"
+        }]
+      },
+      {
+        "name": "Instrument Type",
+        "sources": [{
+          "source": "INSTRUMENT_MODEL"
+        }]
+      },
+      {
+        "name": "Chemistry",
+        "sources": [{
+          "value": "Amplicon"
+        }]
+      },
+      {
+        "name": "Workflow",
+        "sources": [{
+          "value": "GenerateFASTQ"
+        }]
+      },
+      {
+        "name": "Application",
+        "sources": [{
+          "value": "Clone Checking"
+        }]
+      },
+      {
+        "name": "Assay",
+        "sources": [{
+          "value": "Nextera XT"
+        }]
+      }
+    ]
+  },
+  {
+    "name": "Reads",
+    "format": "ROWS",
+    "omitFieldNames": true,
+    "fields": [
+      {
+        "name": "Read 1 Length",
+        "sources": [{
+          "source": "SEQUENCING_PARAMETERS",
+          "sourceProperty": "READ_1_LENGTH"
+        }]
+      },
+      {
+        "name": "Read 2 Length",
+        "sources": [{
+          "source": "SEQUENCING_PARAMETERS",
+          "sourceProperty": "READ_2_LENGTH"
+        }],
+        "omitIfEmpty": true
+      }
+    ]
+  },
+  {
+    "name": "Settings",
+    "format": "ROWS",
+    "fields": [
+      {
+        "name": "Adapter",
+        "sources": [{
+          "value": "CTGTCTCTTATACACATCT"
+        }]
+      },
+      {
+        "name": "CustomRead1PrimerMix",
+        "sources": [{
+          "source": "Custom Read 1 Primer Well"
+        }],
+        "omitIfEmpty": true
+      },
+      {
+        "name": "CustomIndexPrimerMix",
+        "sources": [{
+          "source": "Custom Index Primer Well"
+        }],
+        "omitIfEmpty": true
+      },
+      {
+        "name": "CustomRead2PrimerMix",
+        "sources": [{
+          "source": "Custom Read 2 Primer Well"
+        }],
+        "omitIfEmpty": true
+      }
+    ]
+  },
+  {
+    "name": "Data",
+    "format": "COLUMNS",
+    "multivalue": "LIBRARY_ALIQUOTS",
+    "fields": [
+      {
+        "name": "Sample_ID",
+        "sources": [{
+          "source": "LIBRARY_ALIQUOT",
+          "sourceProperty": "ALIAS"
+        }]
+      },
+      {
+        "name": "Sample_Plate",
+        "sources": []
+      },
+      {
+        "name": "Sample_Well",
+          "sources": []
+      },
+      {
+        "name": "I7_Index_ID",
+          "sources": [{
+            "source": "LIBRARY_ALIQUOT",
+            "sourceProperty": "INDEX_1_NAME"
+        }]
+      },
+      {
+        "name": "index",
+          "sources": [{
+            "source": "LIBRARY_ALIQUOT",
+            "sourceProperty": "INDEX_1_SEQUENCE"
+        }]
+      },
+      {
+        "name": "I5_Index_ID",
+          "sources": [{
+            "source": "LIBRARY_ALIQUOT",
+            "sourceProperty": "INDEX_2_NAME"
+        }],
+        "omitIfEmpty": true
+      },
+      {
+        "name": "index2",
+        "sources": [{
+          "source": "LIBRARY_ALIQUOT",
+          "sourceProperty": "INDEX_2_SEQUENCE"
+        }],
+        "omitIfEmpty": true
+      },
+      {
+        "name": "GenomeFolder",
+        "sources": [{
+          "source": "Genome Folder"
+        }]
+      },
+      {
+        "name": "Sample_Project",
+        "sources": [{
+          "source": "LIBRARY_ALIQUOT",
+          "sourceProperty": "PROJECT_CODE"
+        }]
+      },
+      {
+        "name": "Description",
+        "sources": [{
+          "source": "LIBRARY_ALIQUOT",
+          "sourceProperty": "IDENTIFICATION_BARCODE"
+        }]
+      }
+    ]
+  }
+]');
