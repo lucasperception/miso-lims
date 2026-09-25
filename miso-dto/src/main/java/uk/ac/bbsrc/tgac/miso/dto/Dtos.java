@@ -882,6 +882,7 @@ public class Dtos {
     setLong(dto::setReferenceSlideId, from.getReferenceSlideId(), true);
     setId(dto::setIndexFamilyId, maybeGetProperty(from.getIndex(), SampleIndex::getFamily));
     setId(dto::setIndexId, from.getIndex());
+    setId(dto::setIndex2Id, from.getIndex2());
     return dto;
   }
 
@@ -1162,6 +1163,7 @@ public class Dtos {
     }
     setId(to::setIndexFamilyId, maybeGetProperty(from.getIndex(), SampleIndex::getFamily));
     setId(to::setIndexId, from.getIndex());
+    setId(to::setIndex2Id, from.getIndex2());
     return to;
   }
 
@@ -1177,6 +1179,7 @@ public class Dtos {
       to = new SampleTissueProcessingImpl();
     }
     setObject(to::setIndex, SampleIndex::new, from.getIndexId());
+    setObject(to::setIndex2, SampleIndex::new, from.getIndex2Id());
     return to;
   }
 

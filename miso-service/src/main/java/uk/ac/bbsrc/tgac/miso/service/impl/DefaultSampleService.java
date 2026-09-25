@@ -1037,6 +1037,7 @@ public class DefaultSampleService implements SampleService {
     target.setSlidesConsumed(source.getSlidesConsumed());
     target.setReferenceSlideId(source.getReferenceSlideId());
     target.setIndex(source.getIndex());
+    target.setIndex2(source.getIndex2());
   }
 
   private void applyTissueChanges(SampleTissue target, SampleTissue source) {

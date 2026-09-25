@@ -75,11 +75,11 @@ public class SampleStockDto extends SampleTissueDto {
   }
 
   public Long getIndex2Id() {
-    return indexId;
+    return index2Id;
   }
 
   public void setIndex2Id(Long indexId) {
-    this.indexId = indexId;
+    this.index2Id = indexId;
   }
 
 }

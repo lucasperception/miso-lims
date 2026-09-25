@@ -73,7 +73,6 @@ BulkTarget.sample = (function ($) {
   var parentLocationsByRow = null;
   var metricCategories = [];
 
-  var allowUniqueDualIndexSelectionByRow = {};
 
   var showLabColumn = false;
   var editSubcategories = [];
@@ -384,10 +383,8 @@ BulkTarget.sample = (function ($) {
     },
     prepareData: function (data, config) {
       parentLocationsByRow = {};
-      allowUniqueDualIndexSelectionByRow = {};
       data.forEach(function (sample, index) {
         originalEffectiveGroupIdsByRow[index] = sample.effectiveGroupId;
-        allowUniqueDualIndexSelectionByRow[index] = false;
         if (Constants.isDetailedSample && sample.parentBoxPosition) {
           parentLocationsByRow[index] = sample.parentBoxPosition;
         }
@@ -1090,26 +1087,38 @@ BulkTarget.sample = (function ($) {
           getItemLabel: Utils.array.getName,
           getItemValue: Utils.array.getId,
           onChange: function (rowIndex, newValue, api) {
-            var family = Utils.array.findFirstOrNull(
-              Utils.array.namePredicate(newValue),
-              Constants.sampleIndexFamilies
-            );
-            var index1Changes;
-            var index2Changes;
+            var changes = {
+              disabled: !newValue,
+              required: !!newValue,
+            };
+            var changes2 = {
+              disabled: !newValue,
+              required: false,
+              value: null,
+            };
+            var family = newValue
+              ? Utils.array.findFirstOrNull(
+                Utils.array.namePredicate(newValue),
+                Constants.sampleIndexFamilies
+              )
+              : null;
             if (family) {
-              index1Changes = getIndexPositionChanges(family, 1);
-              index2Changes = getIndexPositionChanges(family, 2);
+              changes.source = family.indices.filter(function (index) {
+                return index.position === 1;
+              });
+              changes2.source = family.indices.filter(function (index) {
+                return index.position === 2;
+              });
+              if (family.uniqueDualIndex) {
+                changes2.disabled = true;
+                changes2.required = false;
+              }
             } else {
-              index1Changes = {
-                source: [],
-                required: false,
-                disabled: true,
-                value: null,
-              };
-              index2Changes = index1Changes;
+              changes.source = [];
+              changes2.source = [];
             }
-            api.updateField(rowIndex, "indexId", index1Changes);
-            api.updateField(rowIndex, "index2Id", index2Changes);
+            api.updateField(rowIndex, "index2Id", changes2);
+            api.updateField(rowIndex, "indexId", changes);
           },
         },
         {
@@ -1136,33 +1145,20 @@ BulkTarget.sample = (function ($) {
           getItemLabel: Utils.array.getName,
           getItemValue: Utils.array.getId,
           onChange: function (rowIndex, newValue, api) {
-            if (!allowUniqueDualIndexSelectionByRow[rowIndex]) {
-              updateUdiSelection(rowIndex, api);
-              return;
-            }
-            if (!newValue) {
-              return;
-            }
             var indexFamilyName = api.getValue(rowIndex, "indexFamilyId");
-            var indexFamily = Utils.array.findFirstOrNull(
+            if (!indexFamilyName || !newValue) return;
+            var family = Utils.array.findFirstOrNull(
               Utils.array.namePredicate(indexFamilyName),
               Constants.sampleIndexFamilies
             );
-            if (indexFamily && indexFamily.uniqueDualIndex) {
-              var index1 = indexFamily.indices.find(function (index) {
-                return index.position === 1 && index.name === newValue;
-              });
-              if (index1) {
-                var index2 = indexFamily.indices.find(function (index) {
-                  return index.position === 2 && index.name === index1.name;
-                });
-                if (index2) {
-                  api.updateField(rowIndex, "index2Id", {
-                    value: index2.name,
-                  });
-                }
-              }
-            }
+            if (!family || !family.uniqueDualIndex) return;
+            var index2 = family.indices.find(function (index) {
+              return index.position === 2 && index.name === newValue;
+            });
+            api.updateField(rowIndex, "index2Id", {
+              value: index2 ? index2.name : null,
+              disabled: true,
+            });
           },
         },
         {
@@ -1188,9 +1184,6 @@ BulkTarget.sample = (function ($) {
           sortSource: Utils.sorting.standardSort("name"),
           getItemLabel: Utils.array.getName,
           getItemValue: Utils.array.getId,
-          onChange: function (rowIndex, newValue, api) {
-            updateUdiSelection(rowIndex, api);
-          },
         },
         {
           title: "Probes",
@@ -1702,41 +1695,6 @@ BulkTarget.sample = (function ($) {
         );
       });
     });
-  }
-
-  function getIndexPositionChanges(family, position) {
-    var indices = family.indices.filter(function (index) {
-      return index.position === position;
-    });
-    var changes = {
-      source: indices,
-      disabled: !indices.length,
-      required: position === 1 && !!indices.length,
-    };
-    if (!indices.length) {
-      changes.value = null;
-    }
-    return changes;
-  }
-
-  function updateUdiSelection(rowIndex, api) {
-    var indexFamilyName = api.getValue(rowIndex, "indexFamilyId");
-    var indexFamily = Constants.sampleIndexFamilies.find(
-      Utils.array.namePredicate(indexFamilyName)
-    );
-    if (!indexFamily) {
-      allowUniqueDualIndexSelectionByRow[rowIndex] = true;
-      return;
-    }
-    var index1 = api.getValueObject(rowIndex, "indexId");
-    var index2 = api.getValueObject(rowIndex, "index2Id");
-    if (!index2) {
-      allowUniqueDualIndexSelectionByRow[rowIndex] = true;
-    } else if (!index1) {
-      allowUniqueDualIndexSelectionByRow[rowIndex] = false;
-    } else {
-      allowUniqueDualIndexSelectionByRow[rowIndex] = index1.name === index2.name;
-    }
   }
 
   function separateExternalNames(names) {

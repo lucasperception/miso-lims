@@ -790,8 +790,8 @@ FormTarget.sample = (function ($) {
             changes.source = [];
             changes2.source = [];
           }
-          form.updateField("indexId", changes);
           form.updateField("index2Id", changes2);
+          form.updateField("indexId", changes);
         },
       },
       {
@@ -807,6 +807,7 @@ FormTarget.sample = (function ($) {
         sortSource: Utils.sorting.standardSort("name"),
         getItemLabel: Utils.array.getName,
         getItemValue: Utils.array.getId,
+        nullLabel: "(Choose)",
         onChange: function (newValue, form) {
           var indexFamilyId = form.get("indexFamilyId");
           if (!indexFamilyId || !newValue) return;

@@ -75,10 +75,14 @@ public class SampleStockImpl extends DetailedSampleImpl implements SampleStock {
   }
 
   @Override
+  public SampleIndex getIndex2() {return index2;}
+
+  @Override
   public void setIndex(SampleIndex index) {
     this.index = index;
   }
 
+  @Override
   public void setIndex2(SampleIndex index) {
     this.index2 = index;
   }
