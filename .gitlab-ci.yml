@@ -1,0 +1,53 @@
+stages:
+    - build
+    - deploy
+
+variables:
+    MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+    PACKAGE_NAME: "war"
+
+build-publish-tag:
+    stage: build
+    image: maven:3.9.6-eclipse-temurin-17
+    rules:
+        - if: '$CI_COMMIT_TAG'
+    script:
+        - mvn clean package
+        - mv /builds/core/miso/miso-web/target/ROOT.war ROOT.war
+        - | 
+          curl --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+                 --upload-file ROOT.war \
+                 "$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/generic/miso/$CI_COMMIT_TAG/ROOT.war"
+    artifacts:
+        paths:
+            - ROOT.war
+        expire_in: 1 week
+
+deploy-tag:
+    stage: deploy
+    image: alpine:latest
+    when: manual
+    needs: []
+    variables:
+        DEPLOY_TAG: "$CI_COMMIT_TAG"
+        DEPLOY_ENV: "stage"
+    rules:
+        - when: manual
+    script:
+        - echo "Deploying tag $DEPLOY_TAG to environment $DEPLOY_ENV"
+        - apk add --no-cache curl openssh-client
+        - |
+          curl --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+               --output ROOT.war \
+               "$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/generic/miso/$DEPLOY_TAG/ROOT.war" 
+        - eval $(ssh-agent -s)
+        - chmod 400 "$CI_USER_PK"
+        - echo "$CI_USER_PK"
+        - ssh-keygen -l -f "$CI_USER_PK"
+        - ssh-add "$CI_USER_PK"
+        - mkdir -p ~/.ssh
+        - chmod 700 ~/.ssh
+        - ssh-keyscan $DEV_SERVER >> ~/.ssh/known_hosts
+        - scp ROOT.war $CI_USER@$DEV_SERVER:/opt/tomcat/latest/webapps/ROOT.war
+        - ssh $CI_USER@$DEV_SERVER "sudo systemctl restart tomcat10"
+     
