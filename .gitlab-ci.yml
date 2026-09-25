@@ -49,5 +49,5 @@ deploy-tag:
         - chmod 700 ~/.ssh
         - ssh-keyscan $DEV_SERVER >> ~/.ssh/known_hosts
         - scp ROOT.war $CI_USER@$DEV_SERVER:/opt/tomcat/latest/webapps/ROOT.war
-        - ssh $CI_USER@$DEV_SERVER "sudo systemctl restart tomcat10"
+        - ssh $CI_USER@$DEV_SERVER "sudo systemctl restart tomcat"
      
