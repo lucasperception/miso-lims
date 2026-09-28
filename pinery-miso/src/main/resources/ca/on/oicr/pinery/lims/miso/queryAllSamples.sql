@@ -35,11 +35,11 @@ SELECT s.alias NAME
         ,s.groupId group_id
         ,s.groupDescription group_id_description
         ,sp.alias purpose
-        ,NULL barcode
-        ,NULL barcode_name
-        ,NULL barcode_two
-        ,NULL barcode_two_name
-        ,NULL barcode_kit
+        ,sbc1.sequence barcode
+        ,sbc1.name barcode_name
+        ,sbc2.sequence barcode_two
+        ,sbc2.name barcode_two_name
+        ,sbcfam.name barcode_kit
         ,NULL umis
         ,qpd.status qcPassed
         ,qpd.description detailedQcStatus
@@ -98,6 +98,9 @@ LEFT JOIN Sample refSlide ON refSlide.sampleId = s.referenceSlideId
 LEFT JOIN Stain stain ON stain.stainId = s.stain
 LEFT JOIN ScientificName sn ON sn.scientificNameId = s.scientificNameId
 LEFT JOIN Sop sop ON sop.sopId = s.sopId
+LEFT JOIN SampleIndex sbc1 ON sbc1.indexId = s.indexId
+LEFT JOIN SampleIndexFamily sbcfam ON sbcfam.indexFamilyId = sbc1.indexFamilyId
+LEFT JOIN SampleIndex sbc2 ON sbc2.indexId = s.index2Id
 LEFT JOIN BoxPosition pos ON pos.targetId = s.sampleId 
         AND pos.targetType = 'SAMPLE' 
 LEFT JOIN Box box ON box.boxId = pos.boxId 
