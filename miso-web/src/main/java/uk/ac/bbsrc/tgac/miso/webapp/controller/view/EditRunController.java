@@ -32,6 +32,7 @@ import uk.ac.bbsrc.tgac.miso.core.data.Run;
 import uk.ac.bbsrc.tgac.miso.core.data.RunPartition;
 import uk.ac.bbsrc.tgac.miso.core.data.RunPartitionAliquot;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.RunPosition;
+import uk.ac.bbsrc.tgac.miso.core.data.impl.Sop;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.Sop.SopCategory;
 import uk.ac.bbsrc.tgac.miso.core.data.type.InstrumentType;
 import uk.ac.bbsrc.tgac.miso.core.manager.IssueTrackerManager;
@@ -42,6 +43,7 @@ import uk.ac.bbsrc.tgac.miso.core.service.RunPartitionAliquotService;
 import uk.ac.bbsrc.tgac.miso.core.service.RunPartitionService;
 import uk.ac.bbsrc.tgac.miso.core.service.RunService;
 import uk.ac.bbsrc.tgac.miso.core.service.SopService;
+import uk.ac.bbsrc.tgac.miso.core.service.WorkstationService;
 import uk.ac.bbsrc.tgac.miso.core.util.IndexChecker;
 import uk.ac.bbsrc.tgac.miso.dto.Dtos;
 import uk.ac.bbsrc.tgac.miso.dto.PartitionDto;
@@ -83,6 +85,8 @@ public class EditRunController {
   private ExperimentService experimentService;
   @Autowired
   private SopService sopService;
+  @Autowired
+  private WorkstationService workstationService;
   @Autowired(required = false)
   private IssueTrackerManager issueTrackerManager;
   @Autowired
@@ -108,7 +112,13 @@ public class EditRunController {
     }
     Run run = instrument.getInstrumentModel().getPlatformType().createRun();
     run.setSequencer(instrument);
+    run.setSop(getDefaultRunSop(instrument));
     return setupForm(run, model);
+  }
+
+  public Sop getDefaultRunSop(Instrument instrument) {
+      Sop defaultRunSop = instrument.getInstrumentModel().getDefaultRunSop();
+      return defaultRunSop == null || defaultRunSop.isArchived() ? null : defaultRunSop;
   }
 
   @GetMapping("/{runId}")
@@ -152,6 +162,14 @@ public class EditRunController {
     }
 
     model.put("runPositions", run.getRunPositions().stream().map(Dtos::asDto).collect(Collectors.toList()));
+    if (run.getRunPositions() == null
+        || run.getRunPositions().size() == 1 && run.getRunPositions().iterator().next().getPosition() == null) {
+      model.put("runPositionAliases", "[]");
+    } else {
+      List<String> runPositionAliases =
+          run.getRunPositions().stream().map(runPos -> runPos.getPosition().getAlias()).toList();
+      model.put("runPositionAliases", mapper.writeValueAsString(runPositionAliases));
+    }
     model.put("runPartitions", getPartitionDtos(run));
     model.put("runAliquots", getRunAliquots(run));
     MisoWebUtils.addIssues(issueTrackerManager, () -> issueTrackerManager.searchIssues(run.getAlias()), model);
@@ -181,6 +199,8 @@ public class EditRunController {
     formConfig.put("isAdmin", user.isAdmin());
     formConfig.put("isRunReviewer", user.isRunReviewer() || user.isAdmin());
     MisoWebUtils.addJsonArray(mapper, formConfig, "sops", sopService.listByCategory(SopCategory.RUN), Dtos::asDto);
+    MisoWebUtils.addJsonArray(mapper, formConfig, "instruments", instrumentService.list(), Dtos::asDto);
+    MisoWebUtils.addJsonArray(mapper, formConfig, "workstations", workstationService.list(), Dtos::asDto);
     model.put("formConfig", mapper.writeValueAsString(formConfig));
 
     return new ModelAndView("/WEB-INF/pages/editRun.jsp", model);

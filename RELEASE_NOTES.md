@@ -7,6 +7,127 @@ Starting with version 1.29.0, the format of this file is based on
 
 ---------------------------------------------------------------------------------------------------
 
+## [3.26.0] - 2026-08-13
+
+### Added
+
+* New SOP field type for recording workstations used
+* New SOP field type for recording instruments used
+
+### Changed
+
+* Sample sheet filenames now include the alias of the first pool instead of the name of the sample sheet
+
+### Fixed
+
+* Incorrect titles for progress dialogs shown while removing requisitioned items and while resuming requisitions
+* Title of Instrument Models list page
+
+
+## [3.25.0] - 2026-07-16
+
+### Added
+
+* Run SOP field values can be automatically filled based on data from Run Scanner
+
+### Fixed
+
+* Some library aliquot validation messages were not being displayed
+
+
+## [3.24.0] - 2026-07-02
+
+### Added
+
+* Configuration to make optional fields required per object type
+  * Added `miso.required.pool` property to require specified pool fields
+  * Supported pool field: `SIZE`
+  * Validation enforced on all save paths including bulk, single-edit, and indirect edits
+  * Invalid field names in the configuration cause a startup error
+
+### Changed
+
+* The Edit Run page now uses the same sample sheet generation system as the Pools list
+  * The BCL2FASTQ and Cell Ranger sample sheets have been moved into this system
+  * The CASAVA sample sheets have been removed
+
+### Fixed
+
+* Buttons for managing SOP fields were not showing on the Create SOP page
+
+### Upgrade Notes
+
+* Updated Runscanner to 2.6.1
+
+
+## [3.23.0] - 2026-06-11
+
+### Added
+
+* * Automatically set Sequencing Parameters for Ultima Runs from Runscanner data
+  * Ultima Run specific fields added (Wafer Shelf, Completed Flows, Expected Flows)
+* SOP fields can now be viewed and updated on Edit Run page.
+* Added optional HTTP Basic authentication configuration for connecting to Run Scanner through an authenticating proxy.
+
+### Changed
+
+* Minor improvements to sample sheet generation
+
+### Upgrade Notes
+
+* Nothing will be written to `miso_debug.log` anymore. Logging has been simplified to all go through the servlet container (Tomcat), so you can find all output in its logs.
+* The `miso.properties` entries for customizing sample sheet defaults have been removed. Sample sheet formats will soon be customizable, allowing you to change these defaults within MISO instead.
+
+
+## [3.22.1] - 2026-05-22
+
+### Fixed
+
+* missed Ultima run catch
+
+
+## [3.22.0] - 2026-05-21
+
+### Added
+
+* Contacts can now be added to requisitions.
+* Added SAML authentication for MISO.
+* Allow MISO to read ULTIMA runs from runscanner
+
+### Fixed
+
+* Unexpected error when attempting to save some pool orders
+* Improved performance when creating samples in bulk.
+
+### Upgrade Notes
+
+* Updated Runscanner to 4.5.0
+
+
+## [3.21.0] - 2026-05-07
+
+### Added
+
+* Qc Status can be added to array run samples.
+* Configuration options to hide columns on bulk edit/create pages. The following `miso.properties`
+  settings can be set to `false` to hide their respective column groups (all default to `true`):
+  * `miso.display.bulk.receiptQc` - Receipt Confirmed, Receipt QC Passed, Receipt QC Note
+  * `miso.display.bulk.requisition` - Requisition Alias, Requisition, Assay
+  * `miso.display.bulk.qcStatus` - QC Status, QC Note
+  * `miso.display.bulk.matrixBarcode` - Matrix Barcode
+  * `miso.display.bulk.discarded` - Discarded
+  * `miso.display.bulk.defaultDetailedQcStatus` - when `qcStatus` is hidden, sets the default QC
+  status value (should match a configured QC status description)
+* Run category SOPs can now define custom fields to capture additional run data.
+
+### Fixed
+
+* Unexpected error when attempting to create new sample types
+* Strange filenames for samplesheets and possibly other file downloads
+* Improved performance of Edit Requisition page load
+* The Library Qualification Method column in Assay Test lists did not show the library design code when specified for Low-Depth Sequencing
+
+
 ## [3.20.0] - 2026-04-09
 
 ### Added

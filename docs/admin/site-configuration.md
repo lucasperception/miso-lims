@@ -309,6 +309,18 @@ a space to separate.
 
 Interval in milliseconds to poll Run Scanner(s). Defaults to `300000` (5 minutes) if unspecified;
 
+### `miso.runscanner.httpBasicAuthUsername`
+
+Optional. Username for HTTP Basic authentication when accessing Run Scanner through an
+authentication-enabled proxy. Run Scanner does not provide built-in authentication, so this is
+only required when authentication is configured on the proxy.
+
+### `miso.runscanner.httpBasicAuthPassword`
+
+Optional. Password for HTTP Basic authentication when accessing Run Scanner through an
+authentication-enabled proxy. Run Scanner does not provide built-in authentication, so this is
+only required when authentication is configured on the proxy.
+
 ### `miso.boxscanner.servers`
 
 Config for Visionmate or DP5Mirage bulk barcode scanners. Enter in format 
@@ -365,6 +377,58 @@ Defaults to `true` if unspecified. Set to `false` to hide the description column
 
 Defaults to `true` if unspecified. Set to `false` to hide the volume column when bulk creating/editing libraries.
 
+### `miso.display.bulk.receiptQc`
+
+Defaults to `true` if unspecified. Set to `false` to hide the Receipt Confirmed, Receipt QC Passed,
+and Receipt QC Note columns on bulk create/edit pages.
+
+### `miso.display.bulk.requisition`
+
+Defaults to `true` if unspecified. Set to `false` to hide the Requisition Alias, Requisition, and
+Assay columns on bulk create/edit pages.
+
+### `miso.display.bulk.qcStatus`
+
+Defaults to `true` if unspecified. Set to `false` to hide the QC Status and QC Note columns on bulk
+create/edit pages. If hidden, consider also setting `miso.defaults.bulk.detailedQcStatus`.
+
+### `miso.display.bulk.matrixBarcode`
+
+Defaults to `true` if unspecified. Set to `false` to hide the Matrix Barcode column on bulk
+create/edit pages.
+
+### `miso.display.bulk.discarded`
+
+Defaults to `true` if unspecified. Set to `false` to hide the Discarded column on bulk create/edit
+pages.
+
+### `miso.defaults.bulk.detailedQcStatus`
+
+Default QC status to apply on bulk create/edit pages. Set to the description of a QC status (e.g.
+"Ready"). When the QC Status column is visible, this pre-selects the value but the user can change
+it. When the QC Status column is hidden via `miso.display.bulk.qcStatus`, this value is applied
+automatically on save.
+
+## Required Fields
+
+Fields can be configured as required per object type. Each property takes a comma-separated list of
+supported field names. Invalid names will cause a startup error. All default to empty (no additional
+required fields).
+
+If a field is hidden via `miso.display.bulk.*`, it will not be enforced as required on bulk pages
+since the user would have no way to provide a value. The back-end validation still applies to all
+save paths, including indirect edits such as adding items to transfers or boxes.
+
+If a previously-optional field is changed to required, existing records that are missing a value for
+that field will fail validation on save. The admin is responsible for backfilling existing records
+before enabling a new required field.
+
+### `miso.required.pool`
+
+Comma-separated list of pool fields to require. Supported values: `SIZE`.
+
+Example: `miso.required.pool:SIZE`
+
 ## Index Checking
 
 ### `miso.pools.strictIndexChecking`
@@ -387,21 +451,3 @@ Maximum number of mismatches to consider a near-duplicate index warning. Default
 ### `miso.pools.warning.index.mismatches.message`
 
 Warning label to display for near-duplicate indices. Defaults to "Near-Duplicate Indices" if unspecified.
-
-## Samplesheet Configurations
-
-### `miso.genomeFolder`
-
-The genomeFolder to be used when exporting sample sheets
-
-### `miso.pools.samplesheet.dragenVersion`
-
-The version of Illumina DRAGEN to be used when exporting sample sheets
-
-### `miso.pools.samplesheet.novaSeqXSeries`
-
-The instrument model alias that maps to the NovaSeqXSeries instrument
-
-### `miso.pools.samplesheet.compressionFormat`
-
-The fastq compression format to be used when exporting Illumina DRAGEN sample sheets. Currently available formats include "gzip" and "ora". Defaults to "gzip" if unspecified.

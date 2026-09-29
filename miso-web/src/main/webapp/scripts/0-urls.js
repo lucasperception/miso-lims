@@ -81,6 +81,7 @@ Urls = (function () {
     projectDatatable: idUrlFunction(arrayRunRestBase + "/dt/project"),
     requisitionDatatable: idUrlFunction(arrayRunRestBase + "/dt/requisition"),
     arraySearch: arrayRunRestBase + "/array-search",
+    samples: middleIdUrlFunction(arrayRunRestBase, "/samples"),
   };
 
   // Assays
@@ -240,7 +241,6 @@ Urls = (function () {
   rest.containers = {
     create: containerRestBase,
     update: idUrlFunction(containerRestBase),
-    spreadsheet: containerRestBase + "/spreadsheet",
     datatable: containerRestBase + "/dt",
     platformDatatable: idUrlFunction(containerRestBase + "/dt/platform"),
     spreadsheet: containerRestBase + "/spreadsheet",
@@ -722,8 +722,6 @@ Urls = (function () {
     bulkDelete: poolRestBase + "/bulk-delete",
     spreadsheet: poolRestBase + "/spreadsheet",
     contentsSpreadsheet: poolRestBase + "/contents/spreadsheet",
-    samplesheet: poolRestBase + "/samplesheet",
-    dragenSamplesheet: poolRestBase + "/dragensamplesheet",
     bulkSave: poolRestBase + "/bulk",
     bulkSaveProgress: idUrlFunction(poolRestBase + "/bulk"),
     worksetDatatable: idUrlFunction(poolRestBase + "/dt/workset"),
@@ -876,7 +874,9 @@ Urls = (function () {
     searchPausedByIds: requisitionRestBase + "/paused",
     bulkResume: requisitionRestBase + "/bulk-resume",
     bulkSaveProgress: idUrlFunction(requisitionRestBase + "/bulk"),
+    listRuns: middleIdUrlFunction(requisitionRestBase, "/runs"),
     listRunLibraries: middleIdUrlFunction(requisitionRestBase, "/runlibraries"),
+    listIdentities: middleIdUrlFunction(requisitionRestBase, "/identities"),
   };
 
   // Runs
@@ -1026,6 +1026,13 @@ Urls = (function () {
     bulkSaveProgress: idUrlFunction(samplePurposeRestBase + "/bulk"),
   };
 
+  // Sample Sheets
+  var sampleSheetRestBase = restBase + "/samplesheets";
+  rest.sampleSheets = {
+    list: sampleSheetRestBase,
+    generate: middleIdUrlFunction(sampleSheetRestBase, "/generate"),
+  };
+
   // Sample Types
   var sampleTypeUiBase = "/sampletype";
   ui.sampleTypes = {
@@ -1118,14 +1125,14 @@ Urls = (function () {
   // SOPs
   var sopUiBase = "/sop";
   ui.sops = {
-    bulkCreate: sopUiBase + "/bulk/new",
-    bulkEdit: sopUiBase + "/bulk/edit",
+    create: sopUiBase + "/new",
+    edit: idUrlFunction(sopUiBase),
   };
 
   var sopRestBase = restBase + "/sops";
   rest.sops = {
-    bulkSave: sopRestBase + "/bulk",
-    bulkSaveProgress: idUrlFunction(sopRestBase + "/bulk"),
+    create: sopRestBase,
+    update: idUrlFunction(sopRestBase),
     categoryDatatable: idUrlFunction(sopRestBase + "/dt/category"),
   };
 

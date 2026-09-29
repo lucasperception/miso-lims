@@ -857,7 +857,7 @@ BulkTarget.sample = (function ($) {
                   source: potentialIdentities,
                   value: setValue,
                   formatter: potentialIdentities.length > 1 ? "multipleOptions" : null,
-                });
+                }, true);
               })
               .fail(function (response, textStatus, serverStatus) {
                 var error = JSON.parse(response.responseText);
@@ -1435,6 +1435,7 @@ BulkTarget.sample = (function ($) {
 
     confirmSave: function (data, config) {
       var deferred = $.Deferred();
+      BulkUtils.applyDefaultDetailedQcStatus(data, config);
       if (Constants.isDetailedSample) {
         data.forEach(function (sample) {
           var sampleClass = Utils.array.findUniqueOrThrow(

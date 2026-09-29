@@ -26,6 +26,8 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.annotation.Nonnull;
+
 import org.apache.commons.lang3.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,13 +42,13 @@ import ca.on.oicr.gsi.runscanner.dto.IlluminaNotificationDto;
 import ca.on.oicr.gsi.runscanner.dto.NotificationDto;
 import ca.on.oicr.gsi.runscanner.dto.OxfordNanoporeNotificationDto;
 import ca.on.oicr.gsi.runscanner.dto.type.IndexSequencing;
-import jakarta.annotation.Nonnull;
 import uk.ac.bbsrc.tgac.miso.core.data.AbstractBoxPosition;
 import uk.ac.bbsrc.tgac.miso.core.data.AbstractBoxable;
 import uk.ac.bbsrc.tgac.miso.core.data.Aliasable;
 import uk.ac.bbsrc.tgac.miso.core.data.Array;
 import uk.ac.bbsrc.tgac.miso.core.data.ArrayModel;
 import uk.ac.bbsrc.tgac.miso.core.data.ArrayRun;
+import uk.ac.bbsrc.tgac.miso.core.data.ArrayRunSample;
 import uk.ac.bbsrc.tgac.miso.core.data.Box;
 import uk.ac.bbsrc.tgac.miso.core.data.BoxPosition;
 import uk.ac.bbsrc.tgac.miso.core.data.BoxSize;
@@ -93,6 +95,7 @@ import uk.ac.bbsrc.tgac.miso.core.data.ReferenceGenome;
 import uk.ac.bbsrc.tgac.miso.core.data.Run;
 import uk.ac.bbsrc.tgac.miso.core.data.RunItemQcStatus;
 import uk.ac.bbsrc.tgac.miso.core.data.RunPartitionAliquot;
+import uk.ac.bbsrc.tgac.miso.core.data.RunSopFieldValue;
 import uk.ac.bbsrc.tgac.miso.core.data.Sample;
 import uk.ac.bbsrc.tgac.miso.core.data.SampleAliquot;
 import uk.ac.bbsrc.tgac.miso.core.data.SampleAliquotSingleCell;
@@ -117,6 +120,7 @@ import uk.ac.bbsrc.tgac.miso.core.data.SequencingOrder;
 import uk.ac.bbsrc.tgac.miso.core.data.SequencingParameters;
 import uk.ac.bbsrc.tgac.miso.core.data.ServiceRecord;
 import uk.ac.bbsrc.tgac.miso.core.data.SolidRun;
+import uk.ac.bbsrc.tgac.miso.core.data.SopField;
 import uk.ac.bbsrc.tgac.miso.core.data.Stain;
 import uk.ac.bbsrc.tgac.miso.core.data.StainCategory;
 import uk.ac.bbsrc.tgac.miso.core.data.Study;
@@ -160,6 +164,7 @@ import uk.ac.bbsrc.tgac.miso.core.data.impl.ProjectContact;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.ProjectImpl;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.ReferenceGenomeImpl;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.Requisition;
+import uk.ac.bbsrc.tgac.miso.core.data.impl.RequisitionContact;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.RunPosition;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.RunPurpose;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.SampleAliquotImpl;
@@ -259,7 +264,6 @@ import uk.ac.bbsrc.tgac.miso.core.data.qc.SampleQcControlRun;
 import uk.ac.bbsrc.tgac.miso.core.data.spreadsheet.SampleSpreadSheets;
 import uk.ac.bbsrc.tgac.miso.core.data.spreadsheet.SpreadSheetFormat;
 import uk.ac.bbsrc.tgac.miso.core.data.spreadsheet.Spreadsheet;
-import uk.ac.bbsrc.tgac.miso.core.data.type.CompressionFormat;
 import uk.ac.bbsrc.tgac.miso.core.data.type.ConsentLevel;
 import uk.ac.bbsrc.tgac.miso.core.data.type.DilutionFactor;
 import uk.ac.bbsrc.tgac.miso.core.data.type.HealthType;
@@ -291,6 +295,7 @@ import uk.ac.bbsrc.tgac.miso.dto.run.RunDto;
 import uk.ac.bbsrc.tgac.miso.dto.run.RunPositionDto;
 import uk.ac.bbsrc.tgac.miso.dto.run.SolidRunDto;
 import uk.ac.bbsrc.tgac.miso.dto.run.UltimaRunDto;
+
 
 @SuppressWarnings("squid:S3776") // make Sonar ignore cognitive complexity warnings for this file
 public class Dtos {
@@ -2136,6 +2141,9 @@ public class Dtos {
     setString(dto::setDataReviewer, maybeGetProperty(from.getDataReviewer(), User::getFullName));
     setDateString(dto::setDataReviewDate, from.getDataReviewDate());
     setId(dto::setSopId, from.getSop());
+    Map<Long, String> sopFieldValues = new HashMap<>();
+    from.getSopFieldValues().forEach(value -> sopFieldValues.put(value.getSopField().getId(), value.getValue()));
+    dto.setSopFieldValues(sopFieldValues);
     setString(dto::setDataManglingPolicy,
         maybeGetProperty(from.getDataManglingPolicy(), InstrumentDataManglingPolicy::name));
 
@@ -2179,7 +2187,12 @@ public class Dtos {
     } else if (from instanceof PacBioRun) {
       return new PacBioRunDto();
     } else if (from instanceof UltimaRun) {
-      return new UltimaRunDto();
+      UltimaRunDto dto = new UltimaRunDto();
+      UltimaRun ultimaRun = (UltimaRun) from;
+      dto.setExpectedFlows(ultimaRun.getExpectedFlows());
+      dto.setCompletedFlows(ultimaRun.getCompletedFlows());
+      dto.setWaferShelf(ultimaRun.getWaferShelf());
+      return dto;
     } else {
       throw new IllegalArgumentException("Unknown run type");
     }
@@ -2207,8 +2220,23 @@ public class Dtos {
     setBoolean(to::setQcPassed, dto.getQcPassed(), true);
     setBoolean(to::setDataReview, dto.getDataReview(), true);
     setObject(to::setSop, Sop::new, dto.getSopId());
+    setRunSopFieldValues(to, dto.getSopFieldValues());
     setObject(to::setDataManglingPolicy, dto.getDataManglingPolicy(), InstrumentDataManglingPolicy::valueOf);
     return to;
+  }
+
+  private static void setRunSopFieldValues(Run run, Map<Long, String> sopFieldValues) {
+    if (sopFieldValues == null) {
+      return;
+    }
+
+    sopFieldValues.forEach((fieldId, value) -> {
+      RunSopFieldValue fieldValue = new RunSopFieldValue();
+      fieldValue.setRun(run);
+      setObject(fieldValue::setSopField, SopField::new, fieldId);
+      fieldValue.setValue(value);
+      run.getSopFieldValues().add(fieldValue);
+    });
   }
 
   private static Run getPlatformRun(RunDto from) {
@@ -2245,7 +2273,12 @@ public class Dtos {
     } else if (from instanceof PacBioRunDto) {
       return new PacBioRun();
     } else if (from instanceof UltimaRunDto) {
-      return new UltimaRun();
+      UltimaRun run = new UltimaRun();
+      UltimaRunDto ultimaDto = (UltimaRunDto) from;
+      run.setCompletedFlows(ultimaDto.getCompletedFlows());
+      run.setExpectedFlows(ultimaDto.getExpectedFlows());
+      run.setWaferShelf(ultimaDto.getWaferShelf());
+      return run;
     } else {
       throw new IllegalArgumentException("Unknown run type");
     }
@@ -2303,7 +2336,11 @@ public class Dtos {
 
   public static List<ContainerDto> asContainerDtos(@Nonnull Collection<SequencerPartitionContainer> containerSubset,
       boolean includeContainerPartitions, boolean includePoolContents) {
-    return asContainerDtos(containerSubset, includeContainerPartitions, includePoolContents);
+    List<ContainerDto> dtoList = new ArrayList<>();
+    for (SequencerPartitionContainer container : containerSubset) {
+      dtoList.add(asDto(container, includeContainerPartitions, includePoolContents, null));
+    }
+    return dtoList;
   }
 
   public static SequencerPartitionContainer to(@Nonnull ContainerDto from) {
@@ -2637,6 +2674,7 @@ public class Dtos {
         .collect(Collectors.toList()));
     setString(dto::setDataManglingPolicy,
         maybeGetProperty(from.getDataManglingPolicy(), InstrumentDataManglingPolicy::name));
+    setId(dto::setDefaultRunSopId, from.getDefaultRunSop());
     return dto;
   }
 
@@ -2660,6 +2698,7 @@ public class Dtos {
     }
     setObject(to::setDataManglingPolicy, from.getDataManglingPolicy(),
         str -> InstrumentDataManglingPolicy.valueOf(str));
+    setObject(to::setDefaultRunSop, Sop::new, from.getDefaultRunSopId());
     return to;
   }
 
@@ -2937,6 +2976,8 @@ public class Dtos {
         break;
       case ILLUMINA:
         setIlluminaRunValues((IlluminaNotificationDto) from, (IlluminaRun) to);
+        break;
+      case ULTIMA:
         break;
       default:
         throw new NotImplementedException("Unexpected platform type: " + to.getPlatformType());
@@ -3483,6 +3524,21 @@ public class Dtos {
     return dto;
   }
 
+  public static ArrayRunSampleDto asDto(@Nonnull ArrayRunSample from) {
+    ArrayRunSampleDto dto = new ArrayRunSampleDto();
+    setId(dto::setArrayRunId, from.getArrayRun());
+    setId(dto::setArrayId, from.getArray());
+    setString(dto::setPosition, from.getPosition());
+    setId(dto::setSampleId, from.getSample());
+    setString(dto::setSampleName, maybeGetProperty(from.getSample(), Sample::getName));
+    setString(dto::setSampleAlias, maybeGetProperty(from.getSample(), Sample::getAlias));
+    setId(dto::setQcStatusId, from.getQcStatus());
+    setString(dto::setQcNote, from.getQcNote());
+    setString(dto::setQcUserName, maybeGetProperty(from.getQcUser(), User::getFullName));
+    setDateString(dto::setQcDate, from.getQcDate());
+    return dto;
+  }
+
   public static List<ArrayDto> asArrayDtos(Collection<Array> arrays) {
     return arrays.stream()
         .map(Dtos::asDto)
@@ -3523,6 +3579,18 @@ public class Dtos {
     setBoolean(run::setQcPassed, from.getQcPassed(), true);
     setDate(run::setLastModified, from.getLastModified());
     return run;
+  }
+
+  public static ArrayRunSample to(@Nonnull ArrayRunSampleDto from) {
+    ArrayRunSample sample = new ArrayRunSample();
+    setObject(sample::setArrayRun, ArrayRun::new, from.getArrayRunId());
+    setObject(sample::setArray, Array::new, from.getArrayId());
+    setString(sample::setPosition, from.getPosition());
+    setObject(sample::setSample, SampleImpl::new, from.getSampleId());
+    setObject(sample::setQcStatus, RunItemQcStatus::new, from.getQcStatusId());
+    setString(sample::setQcNote, from.getQcNote());
+    return sample;
+
   }
 
   public static InstrumentStatusDto asDto(@Nonnull InstrumentStatus from) {
@@ -3571,13 +3639,6 @@ public class Dtos {
 
   public static SpreadsheetFormatDto asDto(@Nonnull SpreadSheetFormat from) {
     SpreadsheetFormatDto dto = new SpreadsheetFormatDto();
-    dto.setName(from.name());
-    dto.setDescription(from.description());
-    return dto;
-  }
-
-  public static CompressionFormatDto asDto(@Nonnull CompressionFormat from) {
-    CompressionFormatDto dto = new CompressionFormatDto();
     dto.setName(from.name());
     dto.setDescription(from.description());
     return dto;
@@ -4437,12 +4498,17 @@ public class Dtos {
 
   public static SopDto asDto(@Nonnull Sop from) {
     SopDto to = new SopDto();
-    setLong(to::setId, from.getId(), false);
+    setLong(to::setId, from.getId(), true);
     setString(to::setAlias, from.getAlias());
     setString(to::setVersion, from.getVersion());
     setString(to::setCategory, maybeGetProperty(from.getCategory(), SopCategory::name));
     setString(to::setUrl, from.getUrl());
     setBoolean(to::setArchived, from.isArchived(), false);
+
+    to.setFields(from.getFields().stream()
+        .map(Dtos::asDto)
+        .collect(Collectors.toList()));
+
     return to;
   }
 
@@ -4454,6 +4520,34 @@ public class Dtos {
     setObject(to::setCategory, from.getCategory(), SopCategory::valueOf);
     setString(to::setUrl, from.getUrl());
     setBoolean(to::setArchived, from.isArchived(), false);
+
+    if (from.getFields() != null && !from.getFields().isEmpty()) {
+      to.setFields(from.getFields().stream().map(Dtos::to).collect(Collectors.toSet()));
+    }
+
+    return to;
+  }
+
+  public static SopFieldDto asDto(@Nonnull SopField from) {
+    SopFieldDto dto = new SopFieldDto();
+    setLong(dto::setId, from.getId(), true);
+    setString(dto::setName, from.getName());
+    setString(dto::setUnits, from.getUnits());
+    setString(dto::setFieldType, maybeGetProperty(from.getFieldType(), SopField.FieldType::name));
+    setId(dto::setInstrumentModelId, from.getInstrumentModel());
+    setString(dto::setInstrumentModelAlias, maybeGetProperty(from.getInstrumentModel(), InstrumentModel::getAlias));
+
+    return dto;
+  }
+
+  public static SopField to(@Nonnull SopFieldDto from) {
+    SopField to = new SopField();
+    setLong(to::setId, from.getId(), false);
+    setString(to::setName, from.getName());
+    setString(to::setUnits, from.getUnits());
+    setObject(to::setFieldType, from.getFieldType(), SopField.FieldType::valueOf);
+    setObject(to::setInstrumentModel, InstrumentModel::new, from.getInstrumentModelId());
+
     return to;
   }
 
@@ -4639,6 +4733,31 @@ public class Dtos {
   public static ProjectContact to(ProjectContactDto from) {
     ProjectContact to = new ProjectContact();
     setObject(to::setProject, ProjectImpl::new, from.getProjectId());
+
+    Contact contact = new Contact();
+    setLong(contact::setId, from.getContactId(), false);
+    setString(contact::setName, from.getContactName());
+    setString(contact::setEmail, from.getContactEmail());
+    to.setContact(contact);
+
+    setObject(to::setContactRole, ContactRole::new, from.getContactRoleId());
+    return to;
+  }
+
+  public static RequisitionContactDto asDto(RequisitionContact from) {
+    RequisitionContactDto to = new RequisitionContactDto();
+    setLong(to::setRequisitionId, from.getRequisition().getId(), false);
+    setLong(to::setContactId, from.getContact().getId(), false);
+    setLong(to::setContactRoleId, from.getContactRole().getId(), false);
+    setString(to::setContactName, from.getContact().getName());
+    setString(to::setContactEmail, from.getContact().getEmail());
+    setString(to::setContactRole, from.getContactRole().getName());
+    return to;
+  }
+
+  public static RequisitionContact to(RequisitionContactDto from) {
+    RequisitionContact to = new RequisitionContact();
+    setObject(to::setRequisition, Requisition::new, from.getRequisitionId());
 
     Contact contact = new Contact();
     setLong(contact::setId, from.getContactId(), false);

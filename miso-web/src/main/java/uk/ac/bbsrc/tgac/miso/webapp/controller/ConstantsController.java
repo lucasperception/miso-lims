@@ -60,6 +60,7 @@ import uk.ac.bbsrc.tgac.miso.core.data.type.IlluminaWorkflowType;
 import uk.ac.bbsrc.tgac.miso.core.data.type.InstrumentType;
 import uk.ac.bbsrc.tgac.miso.core.data.type.MetricCategory;
 import uk.ac.bbsrc.tgac.miso.core.data.type.PlatformType;
+import uk.ac.bbsrc.tgac.miso.core.data.type.RequiredPoolField;
 import uk.ac.bbsrc.tgac.miso.core.data.type.StrStatus;
 import uk.ac.bbsrc.tgac.miso.core.data.type.SubmissionActionType;
 import uk.ac.bbsrc.tgac.miso.core.data.type.ThresholdType;
@@ -113,9 +114,7 @@ import uk.ac.bbsrc.tgac.miso.core.service.WorksetStageService;
 import uk.ac.bbsrc.tgac.miso.core.service.printing.Backend;
 import uk.ac.bbsrc.tgac.miso.core.service.printing.Driver;
 import uk.ac.bbsrc.tgac.miso.core.service.printing.PrintableField;
-import uk.ac.bbsrc.tgac.miso.core.util.IlluminaExperiment;
 import uk.ac.bbsrc.tgac.miso.core.util.IndexChecker;
-import uk.ac.bbsrc.tgac.miso.core.util.SampleSheet;
 import uk.ac.bbsrc.tgac.miso.dto.AssayDto;
 import uk.ac.bbsrc.tgac.miso.dto.AssayTestDto;
 import uk.ac.bbsrc.tgac.miso.dto.Dtos;
@@ -240,6 +239,21 @@ public class ConstantsController {
   @Value("${miso.newOptionSopUrl:#{null}}")
   private String newOptionSopUrl;
 
+  @Value("${miso.display.bulk.receiptQc:true}")
+  private boolean showReceiptQc;
+  @Value("${miso.display.bulk.requisition:true}")
+  private boolean showRequisition;
+  @Value("${miso.display.bulk.qcStatus:true}")
+  private boolean showQcStatus;
+  @Value("${miso.display.bulk.matrixBarcode:true}")
+  private boolean showMatrixBarcode;
+  @Value("${miso.display.bulk.discarded:true}")
+  private boolean showDiscarded;
+  @Value("${miso.defaults.bulk.detailedQcStatus:#{null}}")
+  private String defaultDetailedQcStatus;
+  @Value("${miso.required.pool:}")
+  private List<RequiredPoolField> requiredPoolFields;
+
   @Resource
   private Boolean boxScannerEnabled;
 
@@ -279,6 +293,17 @@ public class ConstantsController {
       node.put("automaticBarcodes", autoGenerateIdBarcodes);
       node.put("boxScannerEnabled", boxScannerEnabled);
       node.put("newOptionSopUrl", newOptionSopUrl);
+      node.put("showReceiptQc", showReceiptQc);
+      node.put("showRequisition", showRequisition);
+      node.put("showQcStatus", showQcStatus);
+      node.put("showMatrixBarcode", showMatrixBarcode);
+      node.put("showDiscarded", showDiscarded);
+      node.put("defaultDetailedQcStatus", defaultDetailedQcStatus);
+
+      ArrayNode requiredPoolFieldsNode = node.putArray("requiredPoolFields");
+      for (RequiredPoolField field : requiredPoolFields) {
+        requiredPoolFieldsNode.add(field.getFieldName());
+      }
 
       final Collection<SampleValidRelationship> relationships = sampleValidRelationshipService.getAll();
 
@@ -334,7 +359,6 @@ public class ConstantsController {
       addJsonArray(mapper, node, "metricSubcategories", metricSubcategoryService.list(), MetricSubcategoryDto::from);
       addJsonArray(mapper, node, "assays", assayService.list(), AssayDto::from);
       addJsonArray(mapper, node, "assayTests", assayTestService.list(), AssayTestDto::from);
-      addJsonArray(mapper, node, "sampleSheetFormats", Arrays.asList(SampleSheet.values()), SampleSheet::name);
       addJsonArray(mapper, node, "contactRoles", contactRoleService.list(), Dtos::asDto);
 
       Collection<LibraryIndexFamily> indexFamilies = indexFamilyService.list();
@@ -396,7 +420,6 @@ public class ConstantsController {
       for (IlluminaChemistry chemistry : IlluminaChemistry.values()) {
         illuminaChemistry.add(chemistry.name());
       }
-      addIlluminaExperimentTypes(node);
       addHealthTypes(node);
       addIlluminaWorkflowTypes(node);
       addInstrumentTypes(node);
@@ -421,16 +444,6 @@ public class ConstantsController {
       constantsTimestamp.set(System.currentTimeMillis() / 1000.0);
     } catch (IOException e) {
       throw new RestException(e);
-    }
-  }
-
-  private static void addIlluminaExperimentTypes(ObjectNode node) {
-    ArrayNode illuminaExperimentTypes = node.putArray("illuminaExperimentTypes");
-    for (IlluminaExperiment experiment : IlluminaExperiment.values()) {
-      ObjectNode dto = illuminaExperimentTypes.addObject();
-      dto.put("name", experiment.name());
-      dto.put("description", experiment.getDescription());
-      dto.put("dragen", experiment.isDragen());
     }
   }
 

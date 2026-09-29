@@ -32,18 +32,24 @@ public class MenuController {
   protected static final Logger log = LoggerFactory.getLogger(MenuController.class);
 
   ServletContext servletContext;
+
   @Autowired
   private AuthorizationManager authorizationManager;
 
   @Value("${miso.autoGenerateIdentificationBarcodes}")
   private Boolean autoGenerateIdBarcodes;
+
   @Value("${miso.detailed.sample.enabled}")
   private Boolean detailedSample;
+
   @Value("${miso.genomeFolder:}")
   private String genomeFolder;
+  @Value("${security.saml.sp.registrationId:miso}")
+  private String samlRegistrationId;
 
   @Autowired
   private ApiKeyService apiKeyService;
+
   @Autowired
   private ObjectMapper mapper;
 
@@ -58,6 +64,8 @@ public class MenuController {
   @RequestMapping("/login")
   public ModelAndView loginPage(ModelMap model,
       @RequestParam(name = "login_error", required = false) Integer loginError) {
+    model.put("samlLoginEnabled", "saml".equals(System.getProperty("security.method")));
+    model.put("samlRegistrationId", samlRegistrationId);
     return new ModelAndView("/WEB-INF/login.jsp", model);
   }
 
@@ -88,7 +96,9 @@ public class MenuController {
     User user = authorizationManager.getCurrentUser();
     model.put("title", "Home");
     model.put("favouriteWorkflows",
-        user.getFavouriteWorkflows().stream().map(Dtos::asDto).map(dto -> mapper.valueToTree(dto))
+        user.getFavouriteWorkflows().stream()
+            .map(Dtos::asDto)
+            .map(dto -> mapper.valueToTree(dto))
             .collect(Collectors.toList()));
     return new ModelAndView("/WEB-INF/pages/mainMenu.jsp", model);
   }
