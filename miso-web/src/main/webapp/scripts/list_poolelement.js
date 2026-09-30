@@ -117,6 +117,16 @@ ListTarget.poolelement = {
         0,
         true
       ),
+      {
+        title: "External Name",
+        type: "text",
+        data: "effectiveExternalNames",
+        description: "Name or other identifier for the donor or organism in an external system",
+        disabled: true,
+        preventImport: true,
+        omit: true,
+        include: Constants.isDetailedSample && Constants.showExternalName,
+      },
       ListUtils.idHyperlinkColumn(
         "Sample Name",
         Urls.ui.samples.edit,

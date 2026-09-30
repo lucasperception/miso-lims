@@ -73,6 +73,7 @@ BulkTarget.sample = (function ($) {
   var parentLocationsByRow = null;
   var metricCategories = [];
 
+
   var showLabColumn = false;
   var editSubcategories = [];
 
@@ -138,8 +139,8 @@ BulkTarget.sample = (function ($) {
             if (categories.length > 1) {
               Utils.showOkDialog("Error", [
                 "You have selected samples of categories " +
-                  categories.join(" & ") +
-                  ". Please select samples from only one category.",
+                categories.join(" & ") +
+                ". Please select samples from only one category.",
               ]);
               return;
             }
@@ -163,8 +164,8 @@ BulkTarget.sample = (function ($) {
               if (sourceCategories.length > 1) {
                 Utils.showOkDialog("Error", [
                   "You have selected samples of categories " +
-                    sourceCategories.join(" & ") +
-                    ". Please select samples from only one category.",
+                  sourceCategories.join(" & ") +
+                  ". Please select samples from only one category.",
                 ]);
                 return;
               }
@@ -173,18 +174,18 @@ BulkTarget.sample = (function ($) {
               var targets = !Constants.isDetailedSample
                 ? []
                 : getCommonChildCategories(classes).map(function (category) {
-                    return {
-                      name: category,
-                      action: function (replicates, newBoxId) {
-                        Utils.page.post(Urls.ui.samples.bulkPropagate, {
-                          boxId: newBoxId,
-                          parentIds: idsString,
-                          replicates: replicates,
-                          targetCategory: category,
-                        });
-                      },
-                    };
-                  });
+                  return {
+                    name: category,
+                    action: function (replicates, newBoxId) {
+                      Utils.page.post(Urls.ui.samples.bulkPropagate, {
+                        boxId: newBoxId,
+                        parentIds: idsString,
+                        replicates: replicates,
+                        targetCategory: category,
+                      });
+                    },
+                  };
+                });
               if (!Constants.isDetailedSample || sourceCategories[0] === "Aliquot") {
                 targets.push({
                   name: "Library",
@@ -222,20 +223,20 @@ BulkTarget.sample = (function ($) {
                   },
                   samples.length > 1
                     ? {
-                        property: "customReplication",
-                        type: "checkbox",
-                        label: "Specify replicates per sample",
-                        value: false,
-                      }
+                      property: "customReplication",
+                      type: "checkbox",
+                      label: "Specify replicates per sample",
+                      value: false,
+                    }
                     : null,
                   targets.length > 1
                     ? {
-                        property: "target",
-                        type: "select",
-                        label: "To",
-                        values: targets,
-                        getLabel: Utils.array.getName,
-                      }
+                      property: "target",
+                      type: "select",
+                      label: "To",
+                      values: targets,
+                      getLabel: Utils.array.getName,
+                    }
                     : null,
                   ListUtils.createBoxField,
                 ].filter(function (x) {
@@ -543,6 +544,16 @@ BulkTarget.sample = (function ($) {
               },
               omit: true,
             },
+            {
+              title: "External Name",
+              type: "text",
+              data: "effectiveExternalNames",
+              description: "Name or other identifier for the donor or organism in an external system",
+              disabled: true,
+              preventImport: true,
+              omit: true,
+              include: Constants.isDetailedSample && !show["Identity"] && !config.isLibraryReceipt && Constants.showExternalName,
+            },
           ];
           if (config.pageMode === "propagate") {
             columns = parentColumns.concat(columns);
@@ -579,8 +590,8 @@ BulkTarget.sample = (function ($) {
         sortSource: Utils.sorting.standardSort(Constants.isDetailedSample ? "code" : "id"),
         getItemLabel: Constants.isDetailedSample
           ? function (item) {
-              return item.code;
-            }
+            return item.code;
+          }
           : Utils.array.getName,
         getItemValue: Utils.array.getId,
         initial: config.project
@@ -614,8 +625,8 @@ BulkTarget.sample = (function ($) {
           if (Constants.isDetailedSample) {
             var subprojects = project
               ? Constants.subprojects.filter(function (subproject) {
-                  return subproject.parentProjectId === project.id;
-                })
+                return subproject.parentProjectId === project.id;
+              })
               : [];
             var changes = {
               source: subprojects,
@@ -1086,20 +1097,37 @@ BulkTarget.sample = (function ($) {
           getItemLabel: Utils.array.getName,
           getItemValue: Utils.array.getId,
           onChange: function (rowIndex, newValue, api) {
-            var family = Utils.array.findFirstOrNull(
-              Utils.array.namePredicate(newValue),
-              Constants.sampleIndexFamilies
-            );
             var changes = {
-              required: !!family,
-              disabled: !family,
+              disabled: !newValue,
+              required: !!newValue,
             };
+            var changes2 = {
+              disabled: !newValue,
+              required: false,
+              value: null,
+            };
+            var family = newValue
+              ? Utils.array.findFirstOrNull(
+                Utils.array.namePredicate(newValue),
+                Constants.sampleIndexFamilies
+              )
+              : null;
             if (family) {
-              changes.source = family.indices;
+              changes.source = family.indices.filter(function (index) {
+                return index.position === 1;
+              });
+              changes2.source = family.indices.filter(function (index) {
+                return index.position === 2;
+              });
+              if (family.uniqueDualIndex) {
+                changes2.disabled = true;
+                changes2.required = false;
+              }
             } else {
               changes.source = [];
-              changes.value = null;
+              changes2.source = [];
             }
+            api.updateField(rowIndex, "index2Id", changes2);
             api.updateField(rowIndex, "indexId", changes);
           },
         },
@@ -1119,7 +1147,49 @@ BulkTarget.sample = (function ($) {
               Utils.array.idPredicate(sample.indexFamilyId),
               Constants.sampleIndexFamilies
             );
-            return indexFamily.indices;
+            return indexFamily.indices.filter(function (index) {
+              return index.position === 1;
+            });
+          },
+          sortSource: Utils.sorting.standardSort("name"),
+          getItemLabel: Utils.array.getName,
+          getItemValue: Utils.array.getId,
+          onChange: function (rowIndex, newValue, api) {
+            var indexFamilyName = api.getValue(rowIndex, "indexFamilyId");
+            if (!indexFamilyName || !newValue) return;
+            var family = Utils.array.findFirstOrNull(
+              Utils.array.namePredicate(indexFamilyName),
+              Constants.sampleIndexFamilies
+            );
+            if (!family || !family.uniqueDualIndex) return;
+            var index2 = family.indices.find(function (index) {
+              return index.position === 2 && index.name === newValue;
+            });
+            api.updateField(rowIndex, "index2Id", {
+              value: index2 ? index2.name : null,
+              disabled: true,
+            });
+          },
+        },
+        {
+          title: "Index 2",
+          type: "dropdown",
+          data: "index2Id",
+          include:
+            ["Tissue Processing", "Stock"].includes(targetCategory) &&
+            Constants.sampleIndexFamilies &&
+            Constants.sampleIndexFamilies.length,
+          source: function (sample, api) {
+            if (!sample.indexFamilyId) {
+              return [];
+            }
+            var indexFamily = Utils.array.findUniqueOrThrow(
+              Utils.array.idPredicate(sample.indexFamilyId),
+              Constants.sampleIndexFamilies
+            );
+            return indexFamily.indices.filter(function (index) {
+              return index.position === 2;
+            });
           },
           sortSource: Utils.sorting.standardSort("name"),
           getItemLabel: Utils.array.getName,
@@ -1758,7 +1828,7 @@ BulkTarget.sample = (function ($) {
     if (!samplesHaveSameProbes(selectedSamples)) {
       Utils.showOkDialog("Error", [
         "Selected samples have different probes. Note that if the samples have already been" +
-          " saved with probes, each sample's probes must be edited individually.",
+        " saved with probes, each sample's probes must be edited individually.",
       ]);
       return;
     }
@@ -1783,8 +1853,8 @@ BulkTarget.sample = (function ($) {
           "OK",
           [
             "Number of probes is less than already present on the " +
-              (selectedSamples > 1 ? "samples" : "sample") +
-              ". This will remove the excess probes. OK to continue?",
+            (selectedSamples > 1 ? "samples" : "sample") +
+            ". This will remove the excess probes. OK to continue?",
           ],
           function () {
             switchToProbesTable(api, selectedSamples, results.count);

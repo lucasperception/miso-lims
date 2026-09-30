@@ -407,6 +407,16 @@ BulkTarget.library = (function ($) {
       } else {
         columns.push(
           {
+            title: "External Name",
+            type: "text",
+            data: "effectiveExternalNames",
+            description: "Name or other identifier for the donor or organism in an external system",
+            disabled: true,
+            preventImport: true,
+            omit: true,
+            include: Constants.isDetailedSample && Constants.showExternalName,
+          },
+          {
             title: "Tissue Origin",
             type: "text",
             disabled: true,
